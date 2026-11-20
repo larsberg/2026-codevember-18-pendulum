@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "id": "2026-codevember-18-pendulum",
+  "title": "Pendulum",
+  "created": "2026-11-19",
+  "date": "2026-11-19",
+  "datePrecision": "day",
+  "author": "Lars Berg",
+  "entry": "./",
+  "description": "A blank Codevember canvas with the shared sketch studio.",
+  "protocol": "sketch-player:v1",
+  "capabilities": [
+    "play",
+    "pause",
+    "reset",
+    "get-setup",
+    "setup",
+    "save-setup",
+    "load-setup"
+  ],
+  "sound": "gesture-required",
+  "audio": "gesture-required",
+  "tags": [
+    "codevember",
+    "pendulum",
+    "threejs"
+  ],
+  "madeWith": [
+    "threejs",
+    "box3d",
+    "strudel",
+    "web-audio"
+  ],
+  "embed": {
+    "src": "./?embed=1",
+    "allow": [
+      "autoplay",
+      "fullscreen"
+    ],
+    "resize": "container",
+    "controls": [
+      "play",
+      "pause",
+      "reset",
+      "get-setup",
+      "setup",
+      "save-setup",
+      "load-setup"
+    ],
+    "protocol": "sketch-player:v1",
+    "parentOriginParameter": "parentOrigin"
+  },
+  "thumbnail": {
+    "src": "./thumbnail.jpg",
+    "width": 1600,
+    "height": 900,
+    "alt": "Blank Pendulum canvas."
+  }
+}
