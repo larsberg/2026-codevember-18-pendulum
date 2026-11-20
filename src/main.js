@@ -8,7 +8,7 @@ import {
 } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { applyCameraView, captureCameraView, configureOrbitInputs } from './camera.js';
+import { applyCameraView, applyShotLens, captureCameraView, configureOrbitInputs } from './camera.js';
 import { createPhysics, initPhysics } from './physics.js';
 import { createControls } from './controls.js';
 import { defaultSetup, validateSetup, DEFAULT_CAMERA } from './settings.js';
@@ -16,6 +16,7 @@ import { requestSetup } from './persistence.js';
 import { libraryPalettes } from './palette-library.js';
 
 import { createShadowFollow } from './shadows.js';
+import { createBeatClock, takeAt } from './beat-clock.js';
 import { createEscapement, loadSet } from './pendulum.js';
 import { applyStudioLighting, bindLightingControls } from './lighting-controls.js';
 import { drawerRequested } from './drawer-url.js';
@@ -38,7 +39,7 @@ const orbit = new OrbitControls(camera, canvas);
 configureOrbitInputs(orbit);
 orbit.mouseButtons = { LEFT: MOUSE.ROTATE, MIDDLE: MOUSE.DOLLY, RIGHT: MOUSE.PAN };
 orbit.enablePan = true; orbit.touches = { ONE: TOUCH.ROTATE, TWO: TOUCH.DOLLY_PAN };
-orbit.minDistance = 1; orbit.maxDistance = 600; orbit.minPolarAngle = .09; orbit.maxPolarAngle = Math.PI - .09;
+orbit.minDistance = .5; orbit.maxDistance = 600; orbit.minPolarAngle = .09; orbit.maxPolarAngle = Math.PI - .09;
 orbit.enableDamping = true; orbit.dampingFactor = .07;
 const focus = new Vector3();
 const pmrem = new PMREMGenerator(renderer), room = new RoomEnvironment();
@@ -71,16 +72,15 @@ const effects = createSceneEffects(renderer, scene, camera, { clampBeauty: false
 const set = await loadSet(scene);
 const simulation = createPhysics(settings.physics);
 const lightingDefaults = defaultSetup().lighting.directional;
-const escapement = createEscapement(simulation, set.pivot, () => settings.audio.tempo, beat => {
-  cut(beat);
-  audio.strike(beat);
-});
+const clock = createBeatClock();
+const escapement = createEscapement(simulation, set.pivot, clock);
+let currentTake;
 let elapsed = 0;
 simulation.onAfterStep(dt => { elapsed += dt; });
 
 let controls, lightingControls, materialControls;
 let audioStatus;
-const audio = createAudio({ onStatus(state) {
+const audio = createAudio({ clock, onStatus(state) {
   audioStatus = state;
   controls?.audioStatus(state);
 } });
@@ -103,11 +103,11 @@ function setLighting() {
 function frameShot() {
   applyCameraView(set.cameraView(settings.camera), camera, orbit, focus);
 }
-function cut(beat) {
-  set.select(beat);
+function cut(take) {
+  currentTake = take;
+  set.select(take);
   focus.fromArray(set.current.target);
-  camera.fov = set.current.fov;
-  camera.updateProjectionMatrix();
+  applyShotLens(camera, set.current);
   frameShot();
   setLighting();
 }
@@ -126,6 +126,7 @@ function configure(restoreCamera = false) {
   effects.configure(settings.lighting.occlusion);
   effects.configureBloom(settings.bloom);
   effects.configureFocus(settings.focus);
+  clock.configure(running(), settings.audio.tempo);
   audio.update(running());
   audio.configure(settings.audio);
   if (restoreCamera) frameShot();
@@ -137,8 +138,11 @@ function restore(value) {
   settings = validateSetup(value);
   simulation.reset();
   elapsed = 0;
+  clock.configure(running(), settings.audio.tempo);
+  clock.seek(settings.motion.position);
   escapement.reset(settings.motion.position);
-  cut(Math.floor(escapement.position));
+  cut(takeAt(settings.motion.position));
+  audio.resync();
   document.activeElement?.blur();
   configure(true);
   controls?.syncPalette();
@@ -152,6 +156,7 @@ function change(group, key, value) {
 }
 
 function render() {
+  set.updateTelevision(clock.position());
   followShadow(focus);
   effects.render(focus);
 }
@@ -233,7 +238,7 @@ function captureView() {
 }
 function snapshot() {
   const result = structuredClone(settings);
-  result.motion.position = escapement.position;
+  result.motion.position = clock.position();
   return result;
 }
 let uiVisible = false;
@@ -243,8 +248,9 @@ function showControls(show) {
   controls?.showControls(show);
 }
 let urlFlag = drawerRequested(location.href);
+clock.seek(settings.motion.position);
 escapement.reset(settings.motion.position);
-cut(Math.floor(escapement.position));
+cut(takeAt(settings.motion.position));
 configure(true);
 showControls(urlFlag);
 window.addEventListener('hashchange', () => {
@@ -268,8 +274,7 @@ function resize() {
   renderer.setSize(innerWidth, innerHeight, false);
   effects.resize(innerWidth, innerHeight);
   camera.aspect = innerWidth / innerHeight;
-  camera.zoom = Math.min(1, camera.aspect / 1.42);
-  camera.updateProjectionMatrix();
+  applyShotLens(camera, set.current);
 }
 window.addEventListener('resize', resize);
 resize();
@@ -285,7 +290,11 @@ let previousTime;
 renderer.setAnimationLoop(now => {
   const dt = (now - (previousTime ?? now)) / 1000;
   previousTime = now;
-  if (running()) simulation.step(dt);
+  if (running()) {
+    const take = takeAt(clock.position());
+    if (take !== currentTake) cut(take);
+    simulation.step(dt);
+  }
   audio.update(running());
   orbit.update();
   render();
@@ -293,12 +302,13 @@ renderer.setAnimationLoop(now => {
 });
 document.addEventListener('visibilitychange', () => {
   previousTime = undefined;
+  clock.configure(running(), settings.audio.tempo);
   audio.update(running());
 });
 
 const sketch = {
   getSetup: snapshot,
-  getState: () => ({ playing: settings.motion.playing, physics: 'Box3D', time: elapsed, beat: Math.floor(escapement.position), shot: set.current.name, armAngle: 2 * Math.atan2(set.pivot.quaternion.y, set.pivot.quaternion.w), audio: audio.diagnostics }),
+  getState: () => ({ playing: settings.motion.playing, physics: 'Box3D', time: elapsed, beat: Math.floor(clock.position()), shot: set.current.name, armAngle: 2 * Math.atan2(set.pivot.quaternion.y, set.pivot.quaternion.w), audio: audio.diagnostics }),
   setup(value) { restore(value); return sketch.getSetup(); },
   play() { if (!settings.motion.playing) actions.togglePlaying(); },
   pause() { if (settings.motion.playing) actions.togglePlaying(); },

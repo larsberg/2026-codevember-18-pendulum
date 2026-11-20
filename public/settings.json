@@ -1,7 +1,7 @@
 {
   "motion": {
     "playing": true,
-    "position": 0
+    "position": 39.46695833332295
   },
   "physics": {
     "gravity": 9.8,
@@ -26,32 +26,32 @@
     "offset": 0
   },
   "audio": {
-    "enabled": false,
+    "enabled": true,
     "volume": 1,
-    "tempo": 84,
+    "tempo": 30,
     "voices": [
       {
-        "level": 0.6,
-        "gate": 0.1,
-        "attack": 0.001,
-        "decay": 0.031,
-        "sustain": 0,
-        "release": 0.023,
-        "lowpass": 4600,
+        "level": 0.25,
+        "gate": 0.39,
+        "attack": 0.011,
+        "decay": 0.14,
+        "sustain": 0.1,
+        "release": 0.13,
+        "lowpass": 1750,
         "resonance": 0.7,
         "highpass": 20,
-        "fm": 0.32,
+        "fm": 0.22,
         "harmonicity": 2,
         "drive": 0,
-        "pan": 0.35,
-        "reverb": 0.055,
+        "pan": 0.42,
+        "reverb": 0.1,
         "roomSize": 0.6,
         "delay": 0,
         "delayTime": 0.75,
         "delayFeedback": 0.25,
         "enabled": true,
         "sound": "sine",
-        "note": 79,
+        "note": 57,
         "rhythm": "x",
         "modulations": {
           "lowpass": {
@@ -129,27 +129,27 @@
         }
       },
       {
-        "level": 0.42,
-        "gate": 0.1,
-        "attack": 0.001,
-        "decay": 0.031,
-        "sustain": 0,
-        "release": 0.023,
-        "lowpass": 3100,
+        "level": 0.2,
+        "gate": 0.39,
+        "attack": 0.011,
+        "decay": 0.14,
+        "sustain": 0.1,
+        "release": 0.13,
+        "lowpass": 1100,
         "resonance": 0.7,
         "highpass": 20,
-        "fm": 0.32,
+        "fm": 0.22,
         "harmonicity": 2,
         "drive": 0,
-        "pan": 0.65,
-        "reverb": 0.055,
+        "pan": 0.58,
+        "reverb": 0.1,
         "roomSize": 0.6,
         "delay": 0,
         "delayTime": 0.75,
         "delayFeedback": 0.25,
         "enabled": true,
         "sound": "sine",
-        "note": 73,
+        "note": 50,
         "rhythm": "x",
         "modulations": {
           "lowpass": {
@@ -232,9 +232,9 @@
     "fps": false
   },
   "camera": {
-    "yaw": 22,
-    "elevation": 13,
-    "distance": 19.2,
+    "yaw": 4.976307334274907,
+    "elevation": 13.263242401433224,
+    "distance": 19.20000000008858,
     "offsetX": 0,
     "offsetY": 0,
     "offsetZ": 0

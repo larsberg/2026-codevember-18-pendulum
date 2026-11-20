@@ -11,33 +11,26 @@ const toVector = values => new Vector3().fromArray(values);
 const amplitude = Math.PI * .154;
 const armAngle = position => amplitude * Math.cos(Math.PI * position);
 
-export function createEscapement(simulation, pivot, tempo, strike) {
-  // The motor operates in the dial's local coordinates, independent of which
-  // pedestal holds the instrument. A beat is one traverse between extremes.
+export function createEscapement(simulation, pivot, clock) {
+  // Drive the kinematic reed to the current beat, including after a dropped frame.
+  // The transport owns time; integrating the animation would accumulate drift.
   const { body } = simulation.addBody({ body: { type: 'kinematic' } });
-  const origin = { x: 0, y: 0, z: 0 };
-  const velocity = { ...origin };
-  let position = 0;
+  const origin = { x: 0, y: 0, z: 0 }, velocity = { ...origin };
   function pose() { pivot.quaternion.copy(body.getRotation()); }
-  function reset(value) {
-    position = value;
-    const half = armAngle(position) / 2;
-    body.setTransform(origin, { x: 0, y: Math.sin(half), z: 0, w: Math.cos(half) });
-    body.setAngularVelocity(origin);
-    pose();
-  }
   simulation.onBeforeStep(dt => {
-    const previousBeat = Math.floor(position);
-    position += dt * tempo() / 60;
-    if (Math.abs(position - Math.round(position)) < 1e-10) position = Math.round(position);
     const current = body.getRotation();
-    velocity.y = (armAngle(position) - 2 * Math.atan2(current.y, current.w)) / dt;
+    velocity.y = (armAngle(clock.position()) - 2 * Math.atan2(current.y, current.w)) / dt;
     body.setAngularVelocity(velocity);
-    if (Math.floor(position) !== previousBeat) strike(Math.floor(position));
   });
   simulation.onSync(pose);
-  reset(0);
-  return { reset, get position() { return position; } };
+  return {
+    reset(position) {
+      const half = armAngle(position) / 2;
+      body.setTransform(origin, { x: 0, y: Math.sin(half), z: 0, w: Math.cos(half) });
+      body.setAngularVelocity(origin);
+      pose();
+    },
+  };
 }
 
 function makeAreaLight(spec) {
@@ -57,35 +50,46 @@ export async function loadSet(scene) {
   RectAreaLightUniformsLib.init();
   const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   const load = async name => (await loader.loadAsync(`${modelDir}${name}.glb`)).scene;
-  const [specs, instrument] = await Promise.all([
+  const [layout, instrument, stage] = await Promise.all([
     fetch(`${modelDir}shots.json`).then(response => {
       if (!response.ok) throw Error(`Could not load the Blender shot list (${response.status}).`);
       return response.json();
     }),
-    load('metronome'),
+    load('metronome'), load('stage'),
   ]);
-  const groundMaterials = new Map();
-  const shots = await Promise.all(specs.map(async spec => {
+  const floor = stage.getObjectByProperty('isMesh', true);
+  const ground = floor.material;
+  const groundColor = ground.color.clone(), groundRoughness = ground.roughness;
+  scene.add(stage);
+  const shots = await Promise.all(layout.shots.map(async spec => {
     const group = await load(spec.name);
     const sun = spec.lights.find(source => source.kind === 'SUN');
     const keyDirection = toVector(sun.position).sub(toVector(sun.target)).normalize();
-    for (const source of spec.lights.filter(source => source.kind === 'AREA')) group.add(makeAreaLight(source));
+    const tvChannels = [];
+    for (const source of spec.lights.filter(source => source.kind === 'AREA')) {
+      const lamp = makeAreaLight(source);
+      group.add(lamp);
+      if (source.tvChannel !== undefined) {
+        tvChannels[source.tvChannel] = { lamp, power: lamp.intensity };
+      }
+    }
+    group.traverse(object => {
+      if (!object.isMesh || object.userData.tvChannel === undefined) return;
+      const channel = tvChannels[object.userData.tvChannel];
+      channel.screen = object.material;
+      channel.emission = object.material.emissiveIntensity;
+    });
     group.visible = false;
     scene.add(group);
-    let floor;
-    group.traverse(object => {
-      const m = object.material;
-      if (m?.userData.stageFloor) {
-        floor = object;
-        groundMaterials.set(m, { color: m.color.clone(), roughness: m.roughness });
-      }
-    });
     const view = new Spherical().setFromVector3(toVector(spec.eye).sub(toVector(spec.target)));
-    return { ...spec, group, keyDirection, sun, view, floor };
+    return { ...spec, group, keyDirection, sun, view, tvChannels };
   }));
+  instrument.position.fromArray(layout.instrument.position);
+  instrument.rotation.y = layout.instrument.yaw;
+  instrument.scale.fromArray(layout.instrument.scale);
   scene.add(instrument);
   let pivot;
-  for (const root of [instrument, ...shots.map(s => s.group)]) root.traverse(object => {
+  for (const root of [stage, instrument, ...shots.map(s => s.group)]) root.traverse(object => {
     if (object.userData.role === 'pendulum') pivot = object;
     if (!object.isMesh) return;
     object.castShadow = !object.material.userData.stageFloor;
@@ -93,33 +97,38 @@ export async function loadSet(scene) {
     object.layers.enable(1);
   });
   if (!pivot) throw Error('The metronome GLB is missing its escapement pivot.');
-  const reflection = createFloorReflection();
+  const reflection = createFloorReflection(floor);
   scene.add(reflection.mesh);
   let active;
   return {
     pivot,
     get current() { return active; },
-    select(beat) {
+    select(take) {
       if (active) active.group.visible = false;
-      active = shots[beat % shots.length];
+      active = shots[take % shots.length];
       active.group.visible = true;
-      reflection.select(active.floor);
-      instrument.position.fromArray(active.position);
-      instrument.rotation.y = active.yaw;
+    },
+    updateTelevision(position) {
+      // A slow crossfade between the picture's two phosphor fields. Each field
+      // illuminates the set with the same envelope as the glass above it.
+      const balance = .26 * Math.cos(Math.PI * position);
+      active.tvChannels.forEach(({ screen, emission, lamp, power }, side) => {
+        const gain = .88 + (side === 0 ? balance : -balance);
+        screen.emissiveIntensity = emission * gain;
+        lamp.intensity = power * gain;
+      });
     },
     setFloor(settings) {
       const material = settings.materials.panels;
       const tint = new Color(material.color).multiply(new Color(settings.studio.background));
       const neutral = neutralGround.clone().multiply(neutralBackdrop);
       tint.setRGB(tint.r / neutral.r, tint.g / neutral.g, tint.b / neutral.b);
-      for (const [surface, baked] of groundMaterials) {
-        applyMaterialSettings(surface, material, 'panels');
-        surface.color.copy(baked.color).multiply(tint);
-        surface.roughness = MathUtils.clamp(baked.roughness * material.roughness / neutralMaterial.roughness, .015, 1);
-      }
+      applyMaterialSettings(ground, material, 'panels');
+      ground.color.copy(groundColor).multiply(tint);
+      ground.roughness = MathUtils.clamp(groundRoughness * material.roughness / neutralMaterial.roughness, .015, 1);
       reflection.configure(settings);
     },
-    // The saved camera is a framing adjustment shared by all four Blender lenses.
+    // The saved camera is a framing adjustment shared by all Blender lenses.
     cameraView(view, inverse = false) {
       const sign = inverse ? -1 : 1;
       const yaw = view.yaw + sign * (MathUtils.radToDeg(active.view.theta) - DEFAULT_CAMERA.yaw);
@@ -131,7 +140,7 @@ export async function loadSet(scene) {
     dispose() {
       reflection.dispose();
       const geometries = new Set(), materials = new Set(), textures = new Set();
-      for (const root of [instrument, ...shots.map(s => s.group)]) {
+      for (const root of [stage, instrument, ...shots.map(s => s.group)]) {
         root.traverse(object => {
           if (object.geometry) geometries.add(object.geometry);
           if (object.material) materials.add(object.material);

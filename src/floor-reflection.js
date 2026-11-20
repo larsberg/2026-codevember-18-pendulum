@@ -3,7 +3,7 @@ import { Reflector } from 'three/addons/objects/Reflector.js';
 
 // The cyclorama supplies the lit surface and its shadows. This second pass adds
 // only the objects reflected in the flat deck, with a roughness-dependent blur.
-export function createFloorReflection() {
+export function createFloorReflection(sweep) {
   const mirror = new Reflector(new PlaneGeometry(110, 110), {
     textureWidth: 512, textureHeight: 512, multisample: 0, clipBias: .001,
     shader: {
@@ -30,7 +30,6 @@ export function createFloorReflection() {
   map.generateMipmaps = true;
   map.minFilter = LinearMipmapLinearFilter;
   const capture = mirror.onBeforeRender;
-  let sweep;
   mirror.onBeforeRender = function (renderer, scene, camera) {
     const background = scene.background, alpha = renderer.getClearAlpha();
     scene.background = null;
@@ -45,7 +44,6 @@ export function createFloorReflection() {
   };
   return {
     mesh: mirror,
-    select(floor) { sweep = floor; },
     configure(settings) {
       const surface = settings.materials.panels, env = settings.lighting.environment;
       const roughness = sweep.material.roughness;

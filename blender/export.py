@@ -18,6 +18,8 @@ def export_meshes(scene, filename):
     bpy.context.window.scene = scene
     bpy.ops.object.select_all(action='DESELECT')
     for obj in scene.objects:
+        if 'shot' in scene and obj.name in bpy.data.scenes['Stage'].objects:
+            continue
         if obj.type in ('MESH', 'EMPTY') and obj.instance_type != 'COLLECTION':
             obj.select_set(True)
     bpy.ops.export_scene.gltf(filepath=str(OUT / (filename+'.glb')), use_selection=True,
@@ -26,13 +28,44 @@ def export_meshes(scene, filename):
                               export_animations=False, export_image_format='WEBP', export_image_quality=86)
 
 
+def protected_frame(scene, socket, vertical_slope):
+    """Camera-space half extents, in units of the frame's half-height."""
+    protected = [(obj, socket.matrix_world @ obj.matrix_world)
+                 for obj in socket.instance_collection.all_objects if obj.type == 'MESH']
+    stage = bpy.data.scenes['Stage'].objects
+    for obj in scene.objects:
+        if obj.type != 'MESH' or obj.name in stage:
+            continue
+        if scene.get('wide') or (obj.parent and obj.parent.get('television')):
+            protected.append((obj, obj.matrix_world))
+    view = scene.camera.matrix_world.inverted()
+    width = height = 0
+    for obj, transform in protected:
+        local_to_camera = view @ transform
+        for vertex in obj.data.vertices:
+            x, y, z = local_to_camera @ vertex.co
+            if z < 0:
+                width = max(width, abs(x / z))
+                height = max(height, abs(y / z))
+    # Leave air around the silhouette on tall screens as well as wide ones.
+    return [round(n / (vertical_slope * .90), 5) for n in (width, height)]
+
+
 export_meshes(bpy.data.scenes['Instrument'], 'metronome')
+export_meshes(bpy.data.scenes['Stage'], 'stage')
 shots = []
+anchor = None
 for sc in sorted(bpy.data.scenes, key=lambda scene: scene.name):
     if 'shot' not in sc:
         continue
     export_meshes(sc, sc['shot'])
     socket = next(obj for obj in sc.objects if obj.get('role') == 'instrument')
+    pose = dict(position=vector(socket.location), yaw=socket.rotation_euler.z)
+    # The instrument is instantiated once by the player; all rooms must match.
+    pose['scale'] = [round(s,7) for s in (socket.scale.x,socket.scale.z,socket.scale.y)]
+    if anchor is not None and anchor != pose:
+        raise ValueError('All rooms must share the same metronome transform')
+    anchor = pose
     target = next(obj for obj in sc.objects if obj.get('role') == 'focus')
     lights = []
     for lamp in sc.objects:
@@ -42,15 +75,18 @@ for sc in sorted(bpy.data.scenes, key=lambda scene: scene.name):
         # Three's rectangular emitters and Blender's area lamps both face local -Z.
         forward = lamp.matrix_world.to_quaternion() @ Vector((0,0,-1))
         up = lamp.matrix_world.to_quaternion() @ Vector((0,1,0))
-        light = dict(kind=data.type, position=vector(lamp.location), target=vector(lamp.location+forward),
+        origin = lamp.matrix_world.translation
+        light = dict(kind=data.type, position=vector(origin), target=vector(origin+forward),
                      up=vector(up), color=list(data.color), power=data.energy)
+        if 'tvChannel' in lamp:
+            light['tvChannel'] = lamp['tvChannel']
         if data.type == 'AREA':
             light.update(width=data.size, height=data.size_y)
         lights.append(light)
     camera = sc.camera
     frame = camera.data.view_frame(scene=sc)
-    vfov = degrees(2 * atan(abs(frame[0].y / frame[0].z)))
+    slope = abs(frame[0].y / frame[0].z)
     shots.append(dict(name=sc['shot'], eye=vector(camera.location), target=vector(target.location),
-                      fov=round(vfov,5), position=vector(socket.location), yaw=socket.rotation_euler.z,
+                      fov=round(degrees(2 * atan(slope)),5), protectedFrame=protected_frame(sc, socket, slope),
                       lights=lights))
-(OUT/'shots.json').write_text(json.dumps(shots, indent=2)+'\n')
+(OUT/'shots.json').write_text(json.dumps(dict(instrument=anchor, shots=shots), indent=2)+'\n')

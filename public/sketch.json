@@ -7,7 +7,7 @@
   "datePrecision": "day",
   "author": "Lars Berg",
   "entry": "./",
-  "description": "A blank Codevember canvas with the shared sketch studio.",
+  "description": "A floating television lights nine still lifes on a glossy teal stage. Each click of a white metronome cuts to the next composition.",
   "protocol": "sketch-player:v1",
   "capabilities": [
     "play",
@@ -26,6 +26,7 @@
     "threejs"
   ],
   "madeWith": [
+    "blender",
     "threejs",
     "box3d",
     "strudel",
@@ -54,6 +55,6 @@
     "src": "./thumbnail.jpg",
     "width": 1600,
     "height": 900,
-    "alt": "Blank Pendulum canvas."
+    "alt": "A tilted television casts cyan and blue light across a mustard sofa and the glossy floor around a white metronome. A clock and lamp sit on the end table."
   }
 }

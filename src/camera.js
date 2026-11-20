@@ -2,6 +2,13 @@ import { MathUtils, MOUSE, Spherical, TOUCH, Vector3 } from "three";
 
 export const MIN_CAMERA_DISTANCE = 1;
 export const DEFAULT_FOLLOW_SMOOTHING = 0.45;
+export function applyShotLens(camera, shot) {
+  const [width, height] = shot.protectedFrame ?? [.67, 1];
+  camera.fov = shot.fov;
+  camera.zoom = Math.min(1, camera.aspect / width, 1 / height);
+  camera.updateProjectionMatrix();
+}
+
 export function configureOrbitInputs(controls) {
   controls.minDistance = MIN_CAMERA_DISTANCE;
   controls.enablePan = false;
