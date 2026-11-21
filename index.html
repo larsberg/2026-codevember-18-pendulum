@@ -3,7 +3,23 @@
   <head><link rel="describedby" type="application/json" href="./sketch.json">
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#f2eee3" />
+    <meta name="theme-color" content="#000000" />
+    <style>
+      html { background: #000; }
+      #stage-status {
+        position: fixed;
+        inset: 0;
+        z-index: 10;
+        display: grid;
+        place-items: center;
+        background: #000;
+        color: #fff;
+        font: 14px system-ui, sans-serif;
+        text-align: center;
+      }
+      #stage-status span { animation: show-status 0s 0.5s backwards; }
+      @keyframes show-status { from { opacity: 0; } to { opacity: 1; } }
+    </style>
     <!-- sketch-social:start -->
     <title>Pendulum — Lars Berg</title>
     <meta name="description" content="A floating television lights ten still lifes on a glossy teal stage. Each click of a white metronome cuts to the next composition.">
@@ -25,11 +41,15 @@
     <meta name="twitter:image" content="https://larsberg.github.io/2026-codevember-18-pendulum/thumbnail.jpg">
     <meta name="twitter:image:alt" content="A tilted television casts cyan and blue light across a mustard sofa and the glossy floor around a white metronome. A clock and lamp sit on the end table.">
     <!-- sketch-social:end -->
-  <script type="module" crossorigin src="./assets/index-Brarvx94.js"></script>
-  <link rel="modulepreload" crossorigin href="./assets/rolldown-runtime-Bh1tDfsg.js">
-  <link rel="stylesheet" crossorigin href="./assets/index-s388hZ_m.css">
+  <script type="module" crossorigin src="./assets/index-eUVMtXpO.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/preload-helper-DYl5dUZ5.js">
 </head>
   <body>
-    <main id="sketch-root"><section class="sketch"><canvas class="scene-canvas" tabindex="0"></canvas></section></main>
+    <main id="sketch-root">
+      <section class="sketch">
+        <canvas class="scene-canvas" tabindex="0"></canvas>
+        <div id="stage-status" role="status"><span>Loading the stage…</span></div>
+      </section>
+    </main>
   </body>
 </html>
