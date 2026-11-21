@@ -15,12 +15,12 @@ const pocket = [answer, onThree, answer, pickup];
 // Each lane repeats its bar figures for the length of the section.
 // The snare masks leave space by withholding strokes from the player's beat buttons.
 const form = [
-  { bars: 4, kicks: [rest], snares: ['....'], level: 1 },
-  { bars: 4, kicks: [onOne], snares: ['....'], level: .68 },
-  { bars: 4, kicks: [onOne], snares: ['...x'], level: .76 },
-  { bars: 4, kicks: [onOne, onThree, onOne, pickup], snares: ['...x', 'xxxx'], level: .88 },
+  { bars: 1, kicks: [rest], snares: ['....'], level: 1 },
+  { bars: 1, kicks: [onOne], snares: ['...x'], level: .68 },
+  { bars: 2, kicks: [onOne, onThree], snares: ['xxxx'], level: .76 },
+  { bars: 4, kicks: [onOne, onThree, onOne, pickup], snares: ['xxxx'], level: .88 },
 
-  { bars: 8, kicks: pocket, snares: ['xxxx'], level: 1 },
+  { bars: 16, kicks: pocket, snares: ['xxxx'], level: 1 },
   { bars: 8, kicks: [onThree, lateThree, answer, onOne], snares: ['xxxx'], level: .96 },
   { bars: 4, kicks: [onThree, onOne, lateThree, onOne], snares: ['xxxx', '...x'], level: .88 },
   { bars: 4, kicks: [onOne], snares: ['...x', '....'], level: .72 },

@@ -11,7 +11,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { applyCameraView, applyShotLens, captureCameraView, configureOrbitInputs } from './camera.js';
 import { createPhysics, initPhysics } from './physics.js';
 import { createControls } from './controls.js';
-import { defaultSetup, validateSetup, DEFAULT_CAMERA } from './settings.js';
+import { defaultSetup, validateSetup, DEFAULT_CAMERA, fields } from './settings.js';
 import { requestSetup } from './persistence.js';
 import { libraryPalettes } from './palette-library.js';
 
@@ -103,16 +103,16 @@ function setLighting() {
   scene.environmentRotation.y = Math.atan2(keyDirection.x, keyDirection.z) + settings.lighting.environment.rotation * Math.PI / 180;
 }
 let usingAuthoredView = false;
-const checkedPosition = new Vector3(), checkedTarget = new Vector3();
-function rememberPose() {
-  checkedPosition.copy(camera.position);
-  checkedTarget.copy(orbit.target);
+const framedPosition = new Vector3(), framedTarget = new Vector3();
+function hasManualView() {
+  return framedPosition.distanceToSquared(camera.position) > 1e-12 || framedTarget.distanceToSquared(orbit.target) > 1e-12;
 }
-function frameShot() {
+function frameShot(checkSightline = false) {
   applyCameraView(set.cameraView(settings.camera), camera, orbit, focus);
-  usingAuthoredView = !set.seesInstrument(camera);
+  usingAuthoredView = checkSightline && !set.seesInstrument(camera);
   if (usingAuthoredView) applyCameraView(set.cameraView(DEFAULT_CAMERA), camera, orbit, focus);
-  rememberPose();
+  framedPosition.copy(camera.position);
+  framedTarget.copy(orbit.target);
 }
 function cut(take) {
   currentTake = take;
@@ -120,7 +120,7 @@ function cut(take) {
   focus.fromArray(set.angle.target);
   lightingTarget.fromArray(set.current.cameras[0].target);
   applyShotLens(camera, set.angle);
-  frameShot();
+  frameShot(true);
   setLighting();
 }
 function configure(restoreCamera = false) {
@@ -154,12 +154,13 @@ function restore(value) {
   cut(takeAt(settings.motion.position));
   audio.resync();
   document.activeElement?.blur();
-  configure(true);
+  configure();
   controls?.syncPalette();
 }
 
 function change(group, key, value) {
-  const next = { ...settings, [group]: { ...settings[group], [key]: value } };
+  const base = group === 'camera' ? currentCamera() : settings[group];
+  const next = { ...settings, [group]: { ...base, [key]: value } };
   settings = validateSetup(next);
   configure(group === 'camera');
   controls?.status('Unsaved changes');
@@ -174,7 +175,7 @@ function render() {
 const actions = {
   change,
   async save() {
-    if (!usingAuthoredView) settings.camera = captureView();
+    settings.camera = currentCamera();
     const saved = await requestSetup('PUT', snapshot());
     controls?.status(import.meta.env.PROD ? 'Saved on this device.' : 'Saved to public/settings.json.');
     return saved;
@@ -241,13 +242,16 @@ function mountControls() {
   if (setupLoadError) controls.status(setupLoadError, true);
 }
 
-function captureView() {
+function currentCamera() {
+  if (!hasManualView()) return settings.camera;
   const view = set.cameraView(captureCameraView(camera, orbit, focus), true);
-  view.distance = Math.max(5, Math.min(600, view.distance));
+  for (const [key, [,, min, max]] of Object.entries(fields.camera)) {
+    view[key] = Math.max(min, Math.min(max, view[key]));
+  }
   return view;
 }
 function snapshot() {
-  const result = structuredClone(settings);
+  const result = structuredClone({ ...settings, camera: currentCamera() });
   result.motion.position = clock.position();
   return result;
 }
@@ -261,7 +265,7 @@ let urlFlag = drawerRequested(location.href);
 clock.seek(settings.motion.position);
 escapement.reset(settings.motion.position);
 cut(takeAt(settings.motion.position));
-configure(true);
+configure();
 showControls(urlFlag);
 window.addEventListener('hashchange', () => {
   const next = drawerRequested(location.href);
@@ -285,22 +289,9 @@ function resize() {
   effects.resize(innerWidth, innerHeight);
   camera.aspect = innerWidth / innerHeight;
   applyShotLens(camera, set.angle);
-  frameShot();
 }
 window.addEventListener('resize', resize);
 resize();
-const gestureStart = new Vector3(), gestureTarget = new Vector3();
-orbit.addEventListener('start', () => {
-  gestureStart.copy(camera.position);
-  gestureTarget.copy(orbit.target);
-});
-orbit.addEventListener('end', () => {
-  if (gestureStart.distanceToSquared(camera.position) < 1e-12 && gestureTarget.distanceToSquared(orbit.target) < 1e-12) return;
-  if (!set.seesInstrument(camera)) { frameShot(); return; }
-  settings.camera = captureView();
-  frameShot();
-  controls?.set(settings);
-});
 canvas.addEventListener('pointerdown', () => {
   if (settings.audio.enabled) void audio.unlock();
 });
@@ -316,12 +307,8 @@ renderer.setAnimationLoop(now => {
   }
   audio.update(running());
   orbit.update();
-  if (checkedPosition.distanceToSquared(camera.position) > 1e-12 || checkedTarget.distanceToSquared(orbit.target) > 1e-12) {
-    if (set.seesInstrument(camera)) rememberPose();
-    else frameShot();
-  }
   render();
-  controls?.frame(audio);
+  controls?.frame(audio, currentCamera);
 });
 document.addEventListener('visibilitychange', () => {
   previousTime = undefined;
@@ -331,7 +318,7 @@ document.addEventListener('visibilitychange', () => {
 
 const sketch = {
   getSetup: snapshot,
-  getState: () => ({ playing: settings.motion.playing, physics: 'Box3D', time: elapsed, beat: Math.floor(clock.position()), shot: set.current.name, cameraAngle: set.angleNumber, cameraFallback: usingAuthoredView, armAngle: 2 * Math.atan2(set.pivot.quaternion.y, set.pivot.quaternion.w), audio: audio.diagnostics }),
+  getState: () => ({ playing: settings.motion.playing, physics: 'Box3D', time: elapsed, beat: Math.floor(clock.position()), shot: set.current.name, cameraAngle: set.angleNumber, cameraFallback: usingAuthoredView && !hasManualView(), armAngle: 2 * Math.atan2(set.pivot.quaternion.y, set.pivot.quaternion.w), audio: audio.diagnostics }),
   setup(value) { restore(value); return sketch.getSetup(); },
   play() { if (!settings.motion.playing) actions.togglePlaying(); },
   pause() { if (settings.motion.playing) actions.togglePlaying(); },

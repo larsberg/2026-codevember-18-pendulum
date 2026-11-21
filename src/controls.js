@@ -79,9 +79,17 @@ export function createControls({settings,change,save,reload,resetView,exportDraw
   }
   const synthControls=bindSynthControls(shell,{getVoices:()=>current.audio.voices,change:voices=>change('audio','voices',voices)});
   const workshop=bindPaletteWorkshop(shell,{getLibrary:()=>current.paletteLibrary,getPalettes:()=>libraryPalettes(current.paletteLibrary),getCurrentId:()=>current.paletteId,preview:selectPalette,change:changeLibrary});
-  return {element:shell,status,audioStatus,showControls,close(){if(!drawer.hidden)open(false);},frame(audio){
+  const cameraInputs = shell.querySelectorAll('[data-group="camera"]');
+  return {element:shell,status,audioStatus,showControls,close(){if(!drawer.hidden)open(false);},frame(audio,currentCamera){
     if(!drawer.hidden&&!query('#panel-audio').hidden){
       synthControls.frame(audio.modulation);
+    }
+    if (!drawer.hidden && !query('#panel-camera').hidden) {
+      const view = currentCamera();
+      for (const input of cameraInputs) {
+        const value = String(view[input.dataset.key]);
+        if (input !== document.activeElement && input.value !== value) input.value = value;
+      }
     }
     stats?.update();
   },set(value){
