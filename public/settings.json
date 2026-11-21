@@ -1,7 +1,7 @@
 {
   "motion": {
     "playing": true,
-    "position": 332.53470833330806
+    "position": 0.75
   },
   "physics": {
     "gravity": 9.8,
@@ -28,10 +28,10 @@
   "audio": {
     "enabled": true,
     "volume": 1,
-    "tempo": 30,
+    "tempo": 21,
     "voices": [
       {
-        "level": 0.16,
+        "level": 0.2,
         "gate": 0.83,
         "attack": 0.001,
         "decay": 0.45,
@@ -130,12 +130,12 @@
         }
       },
       {
-        "level": 0.73,
+        "level": 0.65,
         "gate": 0.78,
         "attack": 0.005,
-        "decay": 0.26,
-        "sustain": 0.18,
-        "release": 0.79,
+        "decay": 0.23,
+        "sustain": 0.06,
+        "release": 0.1,
         "lowpass": 260,
         "resonance": 0.7,
         "highpass": 20,

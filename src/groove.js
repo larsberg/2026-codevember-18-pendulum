@@ -1,9 +1,9 @@
 import { rhythmOnsets } from './synth.js';
 
-// Three bars of 4/4. Positions and gates are in musical quarter notes.
-// The pendulum reaches an end stop once every three quarters.
-const quartersPerClick = 3;
-const quartersPerLoop = 12;
+// One swing per bar of 4/4. All positions and gates use quarter notes.
+const quartersPerClick = 4;
+const quartersPerLoop = 16;
+const swungEighth = 9 / 16;
 
 function envelope(age, hold, { attack, decay, sustain, release }) {
   if (age < 0 || age >= hold + release) return 0;
@@ -15,32 +15,28 @@ function envelope(age, hold, { attack, decay, sustain, release }) {
 export function createGroove(tempo, voices) {
   const seconds = 60 / (tempo * quartersPerClick);
   const notes = [];
-  function add(voice, start, span, accent) {
+  function add(voice, start, span, accent, semitones = 0) {
     const patch = voices[voice];
     if (!patch.enabled) return;
     for (const onset of rhythmOnsets(patch.rhythm)) {
-      notes.push({ voice, start: start + span * onset, duration: span * patch.gate / patch.rhythm.length, accent });
+      notes.push({ voice, start: start + span * onset, duration: span * patch.gate / patch.rhythm.length, accent, semitones });
     }
   }
-  // Count in fours while the pendulum clicks every three quarter notes.
-  for (let bar = 0; bar < quartersPerLoop; bar += 4) {
-    add(1, bar, .43, 1);
-    // Move just the last bar's second kick to the "and" of three.
-    add(1, bar + (bar === quartersPerLoop - 4 ? 2.5 : 2), .36, .82);
+  for (let bar = 0; bar < quartersPerLoop; bar += quartersPerClick) {
+    add(1, bar, .54, 1);
+    if (bar === 0 || bar === 8) add(1, bar + 1 + swungEighth, .24, .60, 3);
+    if (bar === 4) add(1, bar + 2, .40, .80);
+    // Leave beat three empty on the turnaround. A light pickup leads home.
+    if (bar === 12) add(1, bar + 3 + swungEighth, .22, .48, 5);
     for (let beat = 0; beat < 4; beat++) {
-      if (voices[0].beats[beat] === 'x') add(0, bar + beat, .30, beat === 3 ? 1 : .91);
+      if (voices[0].beats[beat] === 'x') add(0, bar + beat, .30, beat === 3 ? 1 : .84);
     }
-  }
-  // Clicks on one or three already have a kick. Give each click on a
-  // backbeat a lighter kick underneath the snare at the very same onset.
-  for (let click = quartersPerClick; click < quartersPerLoop; click += quartersPerClick) {
-    if (click % 2 === 1) add(1, click, .27, .56);
   }
 
   return {
     pattern(api) {
-      const layers = notes.map(({ start, duration, voice, accent }) =>
-        api.pure({ voice, accent }).compress(start / quartersPerLoop, (start + duration) / quartersPerLoop));
+      const layers = notes.map(({ start, duration, voice, accent, semitones }) =>
+        api.pure({ voice, accent, semitones }).compress(start / quartersPerLoop, (start + duration) / quartersPerLoop));
       const loop = layers.length ? api.stack(...layers).slow(quartersPerLoop / quartersPerClick).late(1) : api.silence;
       return api.stack(api.pure({ click: true }), loop);
     },
@@ -48,12 +44,13 @@ export function createGroove(tempo, voices) {
       // The first audible metronome click is the downbeat.
       const quarter = (position - 1) * quartersPerClick;
       let kick = 0;
-      for (const { start, duration, voice, accent } of notes) {
+      for (const { start, duration, voice, accent, semitones } of notes) {
         if (voice !== 1 || quarter < start) continue;
         const age = ((quarter - start) % quartersPerLoop) * seconds;
         const patch = voices[voice];
         const amplitude = patch.level * accent * envelope(age, duration * seconds, patch);
-        const stroke = amplitude * Math.cos(2 * Math.PI * 6.4 * age - .9);
+        const vibration = 6.4 * 2 ** (semitones / 12);
+        const stroke = amplitude * Math.cos(2 * Math.PI * vibration * age - .9);
         if (Math.abs(stroke) > Math.abs(kick)) kick = stroke;
       }
       return kick;

@@ -1,6 +1,6 @@
 // The inherited Audio tab and setup file own the complete synth configuration.
 export const audioFields = {
-  enabled: ['Sound', false], volume: ['Volume', .3, 0, 1, .01], tempo: ['Metronome (BPM)', 30, 20, 200, 1],
+  enabled: ['Sound', false], volume: ['Volume', .3, 0, 1, .01], tempo: ['Metronome (BPM)', 21, 15, 200, 1],
 };
 const waveforms = ['triangle', 'sine', 'sawtooth', 'square'];
 export const voiceSounds = [['snare', ...waveforms], waveforms];
@@ -33,8 +33,9 @@ export function defaultVoices() {
     rhythm: 'x',
     ...(index === 0 ? { beats: '.x.x' } : {}),
     lowpass: index ? 260 : 6200, fm: 0, drive: 0, attack: index ? .005 : .001,
-    decay: index ? .17 : .14, sustain: 0, release: index ? .06 : .04,
-    reverb: 0, delay: 0, level: index ? .46 : .28, pan: .5, gate: .78,
+    decay: index ? .23 : .45, sustain: index ? .06 : .1, release: index ? .10 : .64,
+    reverb: index ? 0 : .07, roomSize: index ? .6 : 1.2, delay: 0,
+    level: index ? .65 : .20, pan: index ? .5 : .4, gate: index ? .78 : .83,
     modulations: Object.fromEntries(Object.entries(modulationTargets).map(([key, [,, min, max]], i) => [key, {
       enabled: false,
       corner: index ? 15 - i : i, heightMin: 0, heightMax: 4, min, max,

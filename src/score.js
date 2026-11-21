@@ -75,8 +75,12 @@ export function createAudio({ clock, load = () => import('@strudel/web'), onErro
     } else {
       value = liveSynthValue(synthValue(settings, event.voice, positions, floor), event.voice);
       value.postgain = event.accent ?? 1;
-      // A damped drumhead, falling from 87 Hz to 49 Hz on the stock patch.
-      if (event.voice === 1) Object.assign(value, { penv: 10, pattack: .003, pdecay: .075, psustain: 0, panchor: 0 });
+      if (event.voice === 1) {
+        // The downbeat settles deepest. The lighter strokes have a shorter pitch drop.
+        const semitones = event.semitones ?? 0;
+        value.note += semitones;
+        Object.assign(value, { penv: 9 - semitones, pattack: .001, pdecay: semitones ? .045 : .085, psustain: 0, panchor: 0 });
+      }
     }
     const token = operation;
     void api.superdough(value, when, duration, 1 / seconds, beat).then(() => {
