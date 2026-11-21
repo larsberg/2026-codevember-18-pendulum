@@ -1,0 +1,31 @@
+{
+  "id": "2026-codevember-18-pendulum",
+  "title": "Pendulum",
+  "slug": "2026-codevember-18-pendulum",
+  "aliases": [],
+  "hidden": true,
+  "date": "2026-11-19",
+  "datePrecision": "day",
+  "thumbnail": {
+    "src": "https://larsberg.github.io/2026-codevember-18-pendulum/thumbnail.jpg",
+    "width": 1600,
+    "height": 900,
+    "alt": "A tilted television casts cyan and blue light across a mustard sofa and the glossy floor around a white metronome. A clock and lamp sit on the end table."
+  },
+  "runtimeUrl": "https://larsberg.github.io/2026-codevember-18-pendulum/?embed=1",
+  "standaloneUrl": "https://larsberg.github.io/2026-codevember-18-pendulum/",
+  "iframeAllow": "autoplay; fullscreen",
+  "madeWith": [
+    "blender",
+    "threejs",
+    "box3d",
+    "strudel",
+    "web-audio"
+  ],
+  "sidebarPattern": "waves",
+  "sidebarTone": "dark",
+  "sidebar": {
+    "textColor": "#ffffff",
+    "backgroundColor": "#000000af"
+  }
+}
