@@ -299,7 +299,6 @@ canvas.addEventListener('pointerdown', () => {
 let previousTime;
 renderer.setAnimationLoop(now => {
   const dt = (now - (previousTime ?? now)) / 1000;
-  previousTime = now;
   if (running()) {
     const take = takeAt(clock.position());
     if (take !== currentTake) cut(take);
@@ -308,6 +307,8 @@ renderer.setAnimationLoop(now => {
   audio.update(running());
   orbit.update();
   render();
+  if (previousTime === undefined) document.getElementById('stage-status')?.remove();
+  previousTime = now;
   controls?.frame(audio, currentCamera);
 });
 document.addEventListener('visibilitychange', () => {
