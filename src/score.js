@@ -2,16 +2,13 @@ import { createSynthPattern, modulateVoice, synthValue } from './synth.js';
 import { createLiveModulation, liveSynthValue } from './live-modulation.js';
 import { resumeAudioContext } from './audio-autoplay.js';
 import { createAudioAnalysis, silentAnalysis } from './audio-analysis.js';
+import { createGroove } from './groove.js';
 
-// Eight beats of pitched accompaniment. Null leaves space for the mechanical tick.
-// A Strudel cycle is one beat so tempo changes preserve both the phrase and cuts.
-const phrase = [[0, null], [null, -5], [7, null], [null, null],
-  [3, null], [null, -2], [5, null], [null, null]];
 export function createAudio({ clock, load = () => import('@strudel/web'), onError = console.warn,
   onStatus = () => {}, resumeContext = resumeAudioContext, createModulation = createLiveModulation,
   createAnalysis = createAudioAnalysis } = {}) {
   let api, context, repl, loading, starting, contextResume, settings, modulation;
-  let score, nextQuery, timer, clicks = 0, lastClickBeat = 0;
+  let groove, score, nextQuery, timer, clicks = 0, lastClickBeat = 0;
   let patternKey, hits = [], busy = false, disposed = false, running = true;
   let suspended = Promise.resolve();
   let active = false, waitingForInteraction = false, operation = 0, eventCount = 0, failed = false;
@@ -30,13 +27,10 @@ export function createAudio({ clock, load = () => import('@strudel/web'), onErro
   }
   function refresh() {
     if (!api || !settings) return;
-    const key = JSON.stringify(settings.voices.map(({ rhythm, gate, enabled }) => ({ rhythm, gate, enabled })));
+    const key = JSON.stringify([settings.tempo, settings.voices.map(({ rhythm, gate, enabled }) => [rhythm, gate, enabled])]);
     if (key === patternKey) return;
     patternKey = key;
-    const music = api.slowcat(...phrase.map(notes => createSynthPattern(api,
-      settings.voices.map((voice, i) => ({ ...voice, enabled: voice.enabled && notes[i] !== null })),
-      voice => ({ voice, interval: notes[voice] }))));
-    score = api.stack(api.pure({ click: true }), music);
+    score = groove.pattern(api);
     hits = createSynthPattern(api, settings.voices, index => index).queryArc(0, 1)
       .map(hap => ({ voice: hap.value, start: Number(hap.whole.begin), end: Number(hap.whole.end) }));
   }
@@ -67,14 +61,18 @@ export function createAudio({ clock, load = () => import('@strudel/web'), onErro
     const seconds = 60 / settings.tempo;
     let value;
     if (event.click) {
-      // Alternating short, dry transients distinguish the two ends of the reed.
+      // The two end stops have distinct timbres, one tick per swing.
       value = { s: 'triangle', note: beat % 2 ? 83 : 89, orbit: 0,
         attack: .001, decay: .012, sustain: 0, release: .009,
-        cutoff: 6500, fmi: 1.2, fmh: 2.31, gain: settings.volume * .73, pan: .5 };
+        cutoff: 6500, fmi: 1.2, fmh: 2.31, gain: settings.volume * .73, pan: .5,
+        delay: 0, room: 0 };
       duration = .027;
     } else {
       value = liveSynthValue(synthValue(settings, event.voice, positions, floor), event.voice);
       value.note += event.interval ?? 0;
+      value.postgain = event.accent ?? 1;
+      // A damped drumhead, falling from 87 Hz to 49 Hz on the stock patch.
+      if (event.voice === 1) Object.assign(value, { penv: 10, pattack: .003, pdecay: .075, psustain: 0, panchor: 0 });
     }
     const token = operation;
     void api.superdough(value, when, duration, 1 / seconds, beat).then(() => {
@@ -126,6 +124,7 @@ export function createAudio({ clock, load = () => import('@strudel/web'), onErro
     return starting;
   }
   return {
+    stageMotion(position) { return groove.motion(position); },
     get analysis() { if (active) analysis ??= createAnalysis(api, context); return active ? analysis?.read() ?? silence : silence; },
     get unlocked() { return active && context?.state === 'running'; },
     get diagnostics() { return { engine: 'Strudel', enabled: !!settings?.enabled, running: active, busy, waitingForInteraction,
@@ -136,6 +135,7 @@ export function createAudio({ clock, load = () => import('@strudel/web'), onErro
       const retrigger = active && settings.tempo !== next.tempo;
       if (retrigger) halt();
       settings = structuredClone(next);
+      groove = createGroove(settings.tempo, settings.voices);
       refresh(); if (active) syncModulation();
       if (!settings.enabled) { if (changedEnabled || active || busy) halt(); }
       else if (!running) status('Sounds enabled · paused with sketch');

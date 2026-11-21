@@ -1,6 +1,13 @@
 // Beat zero is the initial resting extreme. The first audible click is beat one.
 export const takeAt = position => Math.floor(position);
 
+// Each pass through the sets uses the next camera in every set.
+export function cameraCut(take, shots) {
+  const shot = shots[take % shots.length];
+  const angle = Math.floor(take / shots.length) % shot.cameras.length;
+  return { shot, angle };
+}
+
 export function createBeatClock(now = () => performance.now() / 1000) {
   let anchorTime = now(), anchorBeat = 0, bpm = 84, running = false;
   function position(time = now()) {

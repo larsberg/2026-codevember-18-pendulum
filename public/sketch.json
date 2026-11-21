@@ -7,7 +7,7 @@
   "datePrecision": "day",
   "author": "Lars Berg",
   "entry": "./",
-  "description": "A floating television lights nine still lifes on a glossy teal stage. Each click of a white metronome cuts to the next composition.",
+  "description": "A floating television lights ten still lifes on a glossy teal stage. Each click of a white metronome cuts to the next composition.",
   "protocol": "sketch-player:v1",
   "capabilities": [
     "play",

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { createBeatClock, takeAt } from '../src/beat-clock.js';
+import { cameraCut, createBeatClock, takeAt } from '../src/beat-clock.js';
 
 test('every click cuts once at its audio deadline, including the first click and the loop', () => {
   let now = 10;
@@ -9,15 +9,23 @@ test('every click cuts once at its audio deadline, including the first click and
   clock.configure(true, 120);
   const { shots } = JSON.parse(readFileSync(new URL('../public/models/shots.json', import.meta.url)));
   const sequence = ['parlor', 'breakfast', 'library', 'listening', 'exchange',
-    'billiards', 'conservatory', 'launderette', 'daybed'];
+    'conservatory', 'launderette', 'daybed', 'citrus', 'nocturne'];
   assert.deepEqual(shots.map(shot => shot.name), sequence);
-  for (let beat = 1; beat <= sequence.length + 1; beat++) {
+  const cycle = sequence.length * 3;
+  const visits = new Set();
+  for (let beat = 1; beat <= cycle; beat++) {
     now = 10 + beat / 2;
     assert.equal(clock.position(), beat);
     assert.equal(clock.timeAt(beat), now);
     assert.equal(takeAt(clock.position(now - .001)), beat - 1);
-    assert.equal(shots[takeAt(clock.position()) % shots.length].name, sequence[beat % sequence.length]);
+    const { shot, angle } = cameraCut(takeAt(clock.position()), shots);
+    assert.equal(shot.name, sequence[beat % sequence.length]);
+    assert.equal(angle, Math.floor(beat / sequence.length) % 3);
+    visits.add(shot.name + '/' + shot.cameras[angle].label);
   }
+  assert.equal(visits.size, cycle);
+  clock.seek(39.47);
+  assert.deepEqual(cameraCut(takeAt(clock.position()), shots), cameraCut(39 - cycle, shots));
 });
 
 test('tempo edits, pause, resume and restoring a saved phase keep the beat continuous', () => {

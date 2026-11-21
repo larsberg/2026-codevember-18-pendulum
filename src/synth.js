@@ -1,6 +1,6 @@
 import { modulationTargets } from './synth-settings.js';
 
-function rhythmOnsets(rhythm) {
+export function rhythmOnsets(rhythm) {
   return [...rhythm].flatMap((hit, step) => hit === 'x' ? [step / rhythm.length] : []);
 }
 
@@ -35,7 +35,7 @@ export function synthValue(audio, index, positions, floor) {
     cutoff: p.lowpass, resonance: p.resonance, hcutoff: p.highpass,
     fmi: p.fm, fmh: p.harmonicity, distort: p.drive, distortvol: p.driveTrim, pan: p.pan,
     room: p.reverb, roomsize: p.roomSize, delay: p.delay,
-    delaytime: p.delayTime * 60 / audio.tempo, delayfeedback: p.delayFeedback,
+    delaytime: Math.min(1, p.delayTime * 60 / audio.tempo), delayfeedback: p.delayFeedback,
   };
 }
 

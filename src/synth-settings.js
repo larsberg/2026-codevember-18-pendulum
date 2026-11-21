@@ -1,10 +1,10 @@
 // The inherited Audio tab and setup file own the complete synth configuration.
 export const audioFields = {
-  enabled: ['Sound', false], volume: ['Volume', .3, 0, 1, .01], tempo: ['Tempo (BPM)', 84, 20, 200, 1],
+  enabled: ['Sound', false], volume: ['Volume', .3, 0, 1, .01], tempo: ['Metronome (BPM)', 30, 20, 200, 1],
 };
 export const waveforms = ['triangle', 'sine', 'sawtooth', 'square'];
 export const VOICE_NAMES = ['A', 'B'];
-export const ROOT_NOTES = [57, 50];
+export const ROOT_NOTES = [57, 31];
 export const voiceFields = {
   level: ['Level', .6, 0, 1, .01], gate: ['Gesture length', .7, .1, 1, .01],
   attack: ['Attack (s)', .006, .001, 1, .001], decay: ['Decay (s)', .15, .01, 2, .01],
@@ -30,9 +30,9 @@ export function defaultVoices() {
     ...Object.fromEntries(Object.entries(voiceFields).map(([key, [, initial]]) => [key, initial])),
     enabled: true, sound: 'sine', note: ROOT_NOTES[index],
     rhythm: 'x',
-    lowpass: index ? 1100 : 1750, fm: .22, drive: 0, attack: .011,
-    decay: .14, sustain: .10, release: .13, reverb: .10, delay: 0,
-    level: index ? .20 : .25, pan: index ? .58 : .42, gate: .39,
+    lowpass: index ? 260 : 1750, fm: 0, drive: 0, attack: index ? .014 : .004,
+    decay: index ? .17 : .105, sustain: 0, release: index ? .06 : .032,
+    reverb: 0, delay: 0, level: index ? .46 : .69, pan: .5, gate: .78,
     modulations: Object.fromEntries(Object.entries(modulationTargets).map(([key, [,, min, max]], i) => [key, {
       enabled: false,
       corner: index ? 15 - i : i, heightMin: 0, heightMax: 4, min, max,

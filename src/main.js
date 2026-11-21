@@ -41,7 +41,7 @@ orbit.mouseButtons = { LEFT: MOUSE.ROTATE, MIDDLE: MOUSE.DOLLY, RIGHT: MOUSE.PAN
 orbit.enablePan = true; orbit.touches = { ONE: TOUCH.ROTATE, TWO: TOUCH.DOLLY_PAN };
 orbit.minDistance = .5; orbit.maxDistance = 600; orbit.minPolarAngle = .09; orbit.maxPolarAngle = Math.PI - .09;
 orbit.enableDamping = true; orbit.dampingFactor = .07;
-const focus = new Vector3();
+const focus = new Vector3(), lightingTarget = new Vector3();
 const pmrem = new PMREMGenerator(renderer), room = new RoomEnvironment();
 let environmentBlur = settings.lighting.environment.blur;
 let environment = pmrem.fromScene(room, environmentBlur); scene.environment = environment.texture;
@@ -88,8 +88,8 @@ const lights = { directional: light, hemisphere, spotlight, fill };
 const running = () => settings.motion.playing && !document.hidden;
 
 function setLighting() {
-  applyStudioLighting(settings.lighting, lights, focus);
-  const { sun, keyDirection } = set.current;
+  applyStudioLighting(settings.lighting, lights, lightingTarget);
+  const { sun, keyDirection, ambient = .32 } = set.current;
   const value = settings.lighting.directional;
   lightOffset.copy(keyDirection).multiplyScalar(15);
   lightOffset.x += value.offsetX - lightingDefaults.offsetX;
@@ -97,17 +97,29 @@ function setLighting() {
   lightOffset.z += value.offsetZ - lightingDefaults.offsetZ;
   light.color.multiply(new Color(...sun.color));
   light.intensity *= sun.power / 1.4;
-  hemisphere.intensity *= .32;
+  hemisphere.intensity *= ambient;
+  const env = settings.lighting.environment;
+  scene.environmentIntensity = env.enabled ? env.intensity * .68 * (ambient / .32) : 0;
   scene.environmentRotation.y = Math.atan2(keyDirection.x, keyDirection.z) + settings.lighting.environment.rotation * Math.PI / 180;
+}
+let usingAuthoredView = false;
+const checkedPosition = new Vector3(), checkedTarget = new Vector3();
+function rememberPose() {
+  checkedPosition.copy(camera.position);
+  checkedTarget.copy(orbit.target);
 }
 function frameShot() {
   applyCameraView(set.cameraView(settings.camera), camera, orbit, focus);
+  usingAuthoredView = !set.seesInstrument(camera);
+  if (usingAuthoredView) applyCameraView(set.cameraView(DEFAULT_CAMERA), camera, orbit, focus);
+  rememberPose();
 }
 function cut(take) {
   currentTake = take;
   set.select(take);
-  focus.fromArray(set.current.target);
-  applyShotLens(camera, set.current);
+  focus.fromArray(set.angle.target);
+  lightingTarget.fromArray(set.current.cameras[0].target);
+  applyShotLens(camera, set.angle);
   frameShot();
   setLighting();
 }
@@ -118,8 +130,6 @@ function configure(restoreCamera = false) {
   set.setFloor(settings);
   materialControls?.set(settings.materials);
   configureEnvironment();
-  const env = settings.lighting.environment;
-  scene.environmentIntensity = env.enabled ? env.intensity * .68 : 0;
   setLighting();
   lightingControls?.set(settings.lighting);
   for (const source of [light, fill, spotlight]) source.shadow.intensity = settings.studio.shadowOpacity;
@@ -156,15 +166,15 @@ function change(group, key, value) {
 }
 
 function render() {
-  set.updateTelevision(clock.position());
-  followShadow(focus);
+  set.updateInstruments(audio.stageMotion(clock.position()));
+  followShadow(lightingTarget);
   effects.render(focus);
 }
 
 const actions = {
   change,
   async save() {
-    settings.camera = captureView();
+    if (!usingAuthoredView) settings.camera = captureView();
     const saved = await requestSetup('PUT', snapshot());
     controls?.status(import.meta.env.PROD ? 'Saved on this device.' : 'Saved to public/settings.json.');
     return saved;
@@ -274,12 +284,21 @@ function resize() {
   renderer.setSize(innerWidth, innerHeight, false);
   effects.resize(innerWidth, innerHeight);
   camera.aspect = innerWidth / innerHeight;
-  applyShotLens(camera, set.current);
+  applyShotLens(camera, set.angle);
+  frameShot();
 }
 window.addEventListener('resize', resize);
 resize();
+const gestureStart = new Vector3(), gestureTarget = new Vector3();
+orbit.addEventListener('start', () => {
+  gestureStart.copy(camera.position);
+  gestureTarget.copy(orbit.target);
+});
 orbit.addEventListener('end', () => {
+  if (gestureStart.distanceToSquared(camera.position) < 1e-12 && gestureTarget.distanceToSquared(orbit.target) < 1e-12) return;
+  if (!set.seesInstrument(camera)) { frameShot(); return; }
   settings.camera = captureView();
+  frameShot();
   controls?.set(settings);
 });
 canvas.addEventListener('pointerdown', () => {
@@ -297,6 +316,10 @@ renderer.setAnimationLoop(now => {
   }
   audio.update(running());
   orbit.update();
+  if (checkedPosition.distanceToSquared(camera.position) > 1e-12 || checkedTarget.distanceToSquared(orbit.target) > 1e-12) {
+    if (set.seesInstrument(camera)) rememberPose();
+    else frameShot();
+  }
   render();
   controls?.frame(audio);
 });
@@ -308,7 +331,7 @@ document.addEventListener('visibilitychange', () => {
 
 const sketch = {
   getSetup: snapshot,
-  getState: () => ({ playing: settings.motion.playing, physics: 'Box3D', time: elapsed, beat: Math.floor(clock.position()), shot: set.current.name, armAngle: 2 * Math.atan2(set.pivot.quaternion.y, set.pivot.quaternion.w), audio: audio.diagnostics }),
+  getState: () => ({ playing: settings.motion.playing, physics: 'Box3D', time: elapsed, beat: Math.floor(clock.position()), shot: set.current.name, cameraAngle: set.angleNumber, cameraFallback: usingAuthoredView, armAngle: 2 * Math.atan2(set.pivot.quaternion.y, set.pivot.quaternion.w), audio: audio.diagnostics }),
   setup(value) { restore(value); return sketch.getSetup(); },
   play() { if (!settings.motion.playing) actions.togglePlaying(); },
   pause() { if (settings.motion.playing) actions.togglePlaying(); },

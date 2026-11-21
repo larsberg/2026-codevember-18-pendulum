@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { Box3, Matrix4, PerspectiveCamera, Quaternion, Vector3 } from 'three';
+import { Box3, BoxGeometry, Group, Matrix4, Mesh, PerspectiveCamera, Quaternion, Vector3 } from 'three';
 
-import { applyShotLens } from '../src/camera.js';
+import { applyShotLens, instrumentSightline } from '../src/camera.js';
 
 function glb(file) {
   const bytes = readFileSync(new URL(file, import.meta.url));
@@ -71,6 +71,25 @@ test('each dining chair clears the tabletop and the other chairs', () => {
   }
 });
 
+test('the catalog stepladder rises from the floor toward the front of the counter', () => {
+  const file = '../public/models/exchange.glb';
+  const top = geometry(file, 'Lacquered counter');
+  const rug = geometry(file, 'Switchboard runner');
+  const ladder = geometry(file, 'stepladder / placement');
+  const original = geometry('../blender/sources/stepladder.glb');
+  assert.ok(rug.min.z - top.max.z > 1.6, 'leave at least 40 cm of clear floor');
+  assert.ok(Math.abs(ladder.min.y) < .005);
+  assert.ok(Math.abs(ladder.getSize(new Vector3()).y - original.getSize(new Vector3()).y * 4) < .005);
+  const center = ladder.getCenter(new Vector3());
+  const frontEdge = new Vector3(top.getCenter(new Vector3()).x, 0, top.max.z);
+  const gap = center.z - frontEdge.z;
+  assert.ok(gap > 0 && gap < 1.4 && !ladder.intersectsBox(rug));
+  const placement = glb(file).nodes.find(node => node.name === 'stepladder / placement');
+  const climb = new Vector3(0, 0, -1).applyQuaternion(new Quaternion(...(placement.rotation ?? [0, 0, 0, 1])));
+  const towardTable = frontEdge.sub(center.setY(0)).normalize();
+  assert.ok(climb.dot(towardTable) > .85, 'ascending the treads should lead toward the table');
+});
+
 test('each TV emitter sits just in front of its corresponding half of the picture', () => {
   const { shots } = JSON.parse(readFileSync(new URL('../public/models/shots.json', import.meta.url)));
   for (const shot of shots) {
@@ -94,24 +113,63 @@ test('each TV emitter sits just in front of its corresponding half of the pictur
 test('every cut frames the instrument and TV, and the wide shots frame their furniture', () => {
   const { instrument, shots } = JSON.parse(readFileSync(new URL('../public/models/shots.json', import.meta.url)));
   const instance = new Matrix4().makeScale(...instrument.scale).setPosition(...instrument.position);
-  for (const aspect of [16/9, 1, 9/16]) for (const shot of shots) {
-    const camera = new PerspectiveCamera(shot.fov, aspect, .1, 900);
-    camera.position.fromArray(shot.eye);
-    camera.lookAt(new Vector3(...shot.target));
+  for (const shot of shots) {
+    assert.equal(shot.cameras.length, 3);
+    assert.equal(new Set(shot.cameras.map(c => c.eye.join(','))).size, 3);
+  }
+  for (const aspect of [16/9, 1, .5]) for (const shot of shots) for (const angle of shot.cameras) {
+    const view = shot.name + ' / ' + angle.label + ' at ' + aspect;
+    const camera = new PerspectiveCamera(angle.fov, aspect, .1, 900);
+    camera.position.fromArray(angle.eye);
+    camera.lookAt(new Vector3(...angle.target));
     camera.updateMatrixWorld();
-    applyShotLens(camera, shot);
+    applyShotLens(camera, angle);
     const clip = new Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
     const subject = geometry('../public/models/metronome.glb', undefined, clip.clone().multiply(instance));
     const visible = [subject];
     const file = '../public/models/' + shot.name + '.glb';
-    const tv = glb(file).nodes.find(node => node.extras?.television);
-    const wide = ['parlor', 'billiards', 'daybed'].includes(shot.name);
-    visible.push(geometry(file, wide ? undefined : tv.name, clip));
+    if (angle.wide) {
+      visible.push(geometry(file, undefined, clip));
+    } else {
+      const subjects = glb(file).nodes.filter(node => node.extras?.television || node.extras?.frameSubject);
+      for (const node of subjects) visible.push(geometry(file, node.name, clip));
+    }
     for (const bounds of visible) {
       for (const axis of ['x','y','z']) {
-        assert.ok(bounds.min[axis] > -1 && bounds.max[axis] < 1, shot.name + ' cropped on ' + axis);
+        assert.ok(bounds.min[axis] > -1 && bounds.max[axis] < 1, view + ' cropped on ' + axis);
       }
     }
-    assert.ok(subject.max.y - subject.min.y < 1, shot.name + ' should give the metronome breathing room');
+    const size = subject.getSize(new Vector3());
+    assert.ok(Math.max(size.x * aspect, size.y) / (2 * Math.min(aspect, 1)) > .05, view + ' too distant');
+    assert.ok(size.y < 1, view + ' should give the metronome breathing room');
   }
+});
+
+
+test('camera adjustments keep the full swing in frame and clear of foreground props', () => {
+  const instrument = new Group(), pivot = new Group();
+  const body = new Mesh(new BoxGeometry(.45, .7, .35));
+  body.position.y = .35;
+  const arm = new Mesh(new BoxGeometry(.03, .04, .8));
+  arm.position.z = -.4;
+  pivot.position.y = .5;
+  pivot.add(arm);
+  instrument.add(body, pivot);
+  const visible = instrumentSightline(instrument, pivot, Math.PI / 6);
+  const camera = new PerspectiveCamera(38, 1.5, .1, 900);
+  camera.position.set(0, 1, 4);
+  camera.lookAt(0, .45, 0);
+  assert.ok(visible(camera, []));
+  const prop = new Mesh(new BoxGeometry(1, 1.5, .25));
+  prop.position.set(0, .7, 2);
+  prop.updateMatrixWorld();
+  assert.ok(!visible(camera, [prop]));
+  prop.position.z = -2;
+  prop.updateMatrixWorld();
+  assert.ok(visible(camera, [prop]));
+  camera.lookAt(10, 0, 0);
+  assert.ok(!visible(camera, []));
+  camera.position.z = 150;
+  camera.lookAt(0, .45, 0);
+  assert.ok(!visible(camera, []));
 });

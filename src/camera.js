@@ -1,12 +1,63 @@
-import { MathUtils, MOUSE, Spherical, TOUCH, Vector3 } from "three";
+import { Box3, MathUtils, MOUSE, Raycaster, Spherical, TOUCH, Vector3 } from "three";
 
 export const MIN_CAMERA_DISTANCE = 1;
 export const DEFAULT_FOLLOW_SMOOTHING = 0.45;
 export function applyShotLens(camera, shot) {
-  const [width, height] = shot.protectedFrame ?? [.67, 1];
+  const [left, right, height] = shot.framing;
   camera.fov = shot.fov;
-  camera.zoom = Math.min(1, camera.aspect / width, 1 / height);
+  const halfWidth = (right - left) / 2;
+  camera.zoom = Math.min(1, camera.aspect / halfWidth, 1 / height);
+  // Shift the lens just enough to keep both the metronome and TV on a tall screen.
+  const available = camera.aspect / camera.zoom;
+  const shift = MathUtils.clamp(0, right - available, left + available);
+  camera.filmOffset = shift * Math.tan(MathUtils.degToRad(camera.fov) / 2) * camera.getFilmWidth();
   camera.updateProjectionMatrix();
+}
+
+// Test the entire swing even when a cut lands with the arm at one extreme.
+export function instrumentSightline(instrument, pivot, amplitude) {
+  const bounds = new Box3();
+  const rotation = pivot.quaternion.clone();
+  for (const turn of [-amplitude, 0, amplitude]) {
+    pivot.rotation.set(0, turn, 0);
+    instrument.updateWorldMatrix(true, true);
+    bounds.expandByObject(instrument, true);
+  }
+  pivot.quaternion.copy(rotation);
+  instrument.updateWorldMatrix(true, true);
+  const center = bounds.getCenter(new Vector3());
+  const corners = [];
+  for (const x of [bounds.min.x, bounds.max.x])
+    for (const y of [bounds.min.y, bounds.max.y])
+      for (const z of [bounds.min.z, bounds.max.z]) corners.push(new Vector3(x, y, z));
+  const samples = [center, ...corners];
+  for (const x of [bounds.min.x, center.x, bounds.max.x])
+    for (const y of [bounds.min.y, center.y, bounds.max.y]) samples.push(new Vector3(x, y, center.z));
+  for (const z of [bounds.min.z, bounds.max.z]) samples.push(new Vector3(center.x, center.y, z));
+  const ray = new Raycaster(), point = new Vector3(), hits = [];
+  return (camera, blockers) => {
+    camera.updateMatrixWorld();
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (const corner of corners) {
+      point.copy(corner).project(camera);
+      if (Math.abs(point.x) > .98 || Math.abs(point.y) > .98 || Math.abs(point.z) >= 1) return false;
+      minX = Math.min(minX, point.x); maxX = Math.max(maxX, point.x);
+      minY = Math.min(minY, point.y); maxY = Math.max(maxY, point.y);
+    }
+    const shortSide = Math.min(camera.aspect, 1);
+    if (Math.max((maxX - minX) * camera.aspect, maxY - minY) < .09 * shortSide) return false;
+    for (const sample of samples) {
+      point.copy(sample).sub(camera.position);
+      ray.far = point.length() - .015; // A foot resting on the stage is visible.
+      ray.set(camera.position, point.normalize());
+      for (const mesh of blockers) {
+        hits.length = 0;
+        ray.intersectObject(mesh, false, hits);
+        if (hits.length) return false;
+      }
+    }
+    return true;
+  };
 }
 
 export function configureOrbitInputs(controls) {
