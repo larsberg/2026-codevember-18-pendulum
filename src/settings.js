@@ -13,6 +13,10 @@ export const fields = {
   bloom: { enabled: ['Enable bloom', false], strength: ['Bloom strength', .85, 0, 4, .05], radius: ['Bloom radius', .45, 0, 1, .01], threshold: ['Bloom threshold', 1.4, 0, 3, .01] },
   focus: { enabled: ['Tilt blur', false], tilt: ['Sharp band angle °', 0, -85, 85, 1], band: ['Sharp band half-width', .18, .02, .5, .01], strength: ['Blur amount', 1.5, 0, 8, .1], offset: ['Band vertical offset', 0, -.5, .5, .01] },
   audio: audioFields,
+  tvWave: {
+    height: ['Wave height (×)', 1, 0, 2, .05],
+    density: ['Wave density (×)', 1, .25, 3, .05],
+  },
   visibility: { fps: ['Show frame-rate meter', false] },
   camera: {
     yaw: ['Yaw', DEFAULT_CAMERA.yaw, -360, 360, .1], elevation: ['Elevation', DEFAULT_CAMERA.elevation, -85, 85, .1],

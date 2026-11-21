@@ -4,7 +4,7 @@ export const audioFields = {
 };
 const waveforms = ['triangle', 'sine', 'sawtooth', 'square'];
 export const voiceSounds = [['snare', ...waveforms], waveforms];
-export const VOICE_NAMES = ['A', 'B'];
+export const VOICE_NAMES = ['TV wave snare', 'Floor kick'];
 export const ROOT_NOTES = [57, 31];
 export const voiceFields = {
   level: ['Level', .6, 0, 1, .01], gate: ['Gesture length', .7, .1, 1, .01],
@@ -31,6 +31,7 @@ export function defaultVoices() {
     ...Object.fromEntries(Object.entries(voiceFields).map(([key, [, initial]]) => [key, initial])),
     enabled: true, sound: index ? 'sine' : 'snare', note: ROOT_NOTES[index],
     rhythm: 'x',
+    ...(index === 0 ? { beats: '.x.x' } : {}),
     lowpass: index ? 260 : 6200, fm: 0, drive: 0, attack: index ? .005 : .001,
     decay: index ? .17 : .14, sustain: 0, release: index ? .06 : .04,
     reverb: 0, delay: 0, level: index ? .46 : .28, pan: .5, gate: .78,
@@ -66,6 +67,10 @@ export function validateVoices(value = defaultVoices(), legacy = false) {
     result.rhythm = voice.rhythm ?? result.rhythm;
     if (typeof result.rhythm !== 'string' || !/^[xX.\-]{1,32}$/.test(result.rhythm)) fail('rhythm');
     result.rhythm = result.rhythm.toLowerCase().replaceAll('-', '.');
+    if (i === 0) {
+      result.beats = voice.beats ?? result.beats;
+      if (typeof result.beats !== 'string' || !/^[x.]{4}$/.test(result.beats)) fail('beats');
+    }
     for (const key of Object.keys(modulationTargets)) {
       const route = { ...result.modulations[key], ...voice.modulations?.[key] };
       if (typeof route.enabled !== 'boolean' || !Number.isInteger(route.corner) || route.corner < 0 || route.corner > 15

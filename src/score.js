@@ -28,7 +28,7 @@ export function createAudio({ clock, load = () => import('@strudel/web'), onErro
   }
   function refresh() {
     if (!api || !settings) return;
-    const key = JSON.stringify([settings.tempo, settings.voices.map(({ rhythm, gate, enabled }) => [rhythm, gate, enabled])]);
+    const key = JSON.stringify([settings.tempo, settings.voices.map(({ rhythm, gate, enabled, beats }) => [rhythm, gate, enabled, beats])]);
     if (key === patternKey) return;
     patternKey = key;
     score = groove.pattern(api);

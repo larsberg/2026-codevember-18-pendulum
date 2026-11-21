@@ -50,3 +50,16 @@ test('the snare holds two and four, with room between kicks and one syncopation 
     }
   }
 });
+
+test('snare beat buttons change only the snare onsets across all three bars', () => {
+  const voices = defaultVoices();
+  const score = () => createGroove(30, voices).pattern(strudel).queryArc(1, 5).filter(h => h.hasOnset());
+  const otherHits = notes => notes.filter(h => h.value.voice !== 0).map(h => [Number(h.whole.begin), h.value]);
+  const baseline = otherHits(score());
+  for (const [beats, quarters] of [['x.x.', [0, 2, 4, 6, 8, 10]], ['....', []]]) {
+    voices[0].beats = beats;
+    const notes = score();
+    assert.deepEqual(notes.filter(h => h.value.voice === 0).map(h => Number(h.whole.begin.sub(1).mul(3))).sort((a, b) => a - b), quarters);
+    assert.deepEqual(otherHits(notes), baseline);
+  }
+});

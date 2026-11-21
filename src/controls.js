@@ -36,7 +36,7 @@ export function createControls({settings,change,save,reload,resetView,exportDraw
         <section id="panel-palettes" role="tabpanel" aria-labelledby="tab-palettes" hidden>${paletteWorkshopMarkup()}</section>
         <section id="panel-audio" role="tabpanel" aria-labelledby="tab-audio" hidden>
           <p class="control-heading">Strudel</p><div class="audio-toolbar"><button type="button" class="audio-start">Enable sounds</button><button type="button" class="audio-stop">Mute sounds</button><button type="button" data-action="audition">Preview voices (F)</button></div><p class="audio-status" role="status">Sounds muted</p>${group('audio',['volume','tempo'])}
-          ${synthControlsMarkup()}
+          ${synthControlsMarkup(group('tvWave'))}
         </section>
         <section id="panel-materials" role="tabpanel" aria-labelledby="tab-materials" hidden>${materialControlsMarkup()}</section>
         <section id="panel-lighting" role="tabpanel" aria-labelledby="tab-lighting" hidden><p class="control-heading">Studio</p>${group('studio')}${lightingControlsMarkup()}<details class="material-group"><summary>Bloom</summary>${group('bloom')}</details></section>

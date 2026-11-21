@@ -17,6 +17,7 @@ test('atomic GET/PUT round trip uses Pendulum ownership and retains the complete
  try {
   const setup=defaultSetup();setup.physics.gravity=6;setup.camera.yaw=67;setup.bloom.enabled=true;setup.focus.enabled=true;
   setup.audio.tempo=96;
+  setup.audio.voices[0].beats='x..x'; setup.tvWave={height:0, density:1.5};
   setup.materials.panels.roughness=.13;setup.audio.enabled=false;setup.lighting.environment.intensity=1.8;
   Object.assign(setup.lighting.spotlight,{penumbra:.9,softness:7.5,intensity:11200});
   assert.equal((await request('PUT',setup,'01-fold')).status,409);
@@ -30,9 +31,12 @@ test('atomic GET/PUT round trip uses Pendulum ownership and retains the complete
 
 test('older setups acquire the physical defaults and retain custom synth patches', () => {
   const old = { version: 2, physics: { gravity: 7 }, audio: { tempo: 107, voices: defaultSetup().audio.voices } };
+  delete old.audio.voices[0].beats;
   Object.assign(old.audio.voices[1], { sound: 'triangle', note: 43, lowpass: 7000,
     fm: 1, drive: .04, attack: .006, release: .14, reverb: .02, gate: .88 });
   const migrated = validateSetup(old);
+  assert.equal(migrated.audio.voices[0].beats, '.x.x');
+  assert.deepEqual(migrated.tvWave, {height:1, density:1});
   assert.equal(migrated.physics.gravity, 7);
   assert.equal(migrated.physics.friction, defaultSetup().physics.friction);
   assert.equal(migrated.audio.tempo, 107);

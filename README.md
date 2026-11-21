@@ -4,7 +4,7 @@ A white mechanical metronome stands at the center of a petrol-blue cyclorama. Ea
 
 Click the sketch to hear the 90 BPM pulse. The metronome ticks at 30 BPM, alternating its two end-stop sounds and cutting the scene every three quarter notes. The kick marks one and three, moving to the “and” of three in the last bar of the phrase. The TV snare lands squarely on two and four. Every metronome click shares its onset with a kick, played lighter when the snare lands there too. A loose floor speaker flexes on each kick, with a rubber cord running from its basket to a nearby jack plate. The two-color picture rises with the snare’s output and settles to a flat line between strokes.
 
-Run `npm run dev` in the VS Code terminal and open the address Vite prints. **M** toggles sound, **P** pauses the beat and **H** opens the studio drawer. In the Audio tab, Voice A controls the TV snare and Voice B controls the bass drum. The tempo control sets the metronome speed. The music runs at three times that tempo. Reset starts muted at 30 BPM on the metronome.
+Run `npm run dev` in the VS Code terminal and open the address Vite prints. **M** toggles sound, **P** pauses the beat and **H** opens the studio drawer. In the Audio tab, open **TV wave snare** and tap beats 1–4 to place a snare on those quarter notes in each bar. Adjust its level, tuning, tone and decay by ear. Wave height and density control the picture. Save settings keeps the pattern and sound for the next session. The tempo control sets the metronome speed. The music runs at three times that tempo. Reset starts muted at 30 BPM on the metronome.
 
 ## Blender
 

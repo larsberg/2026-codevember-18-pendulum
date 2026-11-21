@@ -60,9 +60,9 @@ function wireTelevision(channels) {
         `);
     };
   }
-  return ({ snare, position }) => {
+  return ({ snare, position }, { height, density }) => {
     const phase = -2 * Math.PI * 8 * (position % 1);
-    wave.set(Math.min(.34, 2 * snare), 2 * Math.PI * (1.25 + 4 * snare), phase);
+    wave.set(Math.min(.48, height * Math.min(.34, 2 * snare)), 2 * Math.PI * density * (1.25 + 4 * snare), phase);
     // Integrate the bright field over each half so its light follows the glass.
     channels.forEach(({ lamp }, side) => {
       const left = phase + side * wave.y / 2;
@@ -149,8 +149,8 @@ export async function loadSet(scene) {
       ({ shot: active, angle: angleIndex } = cameraCut(take, shots));
       active.group.visible = true;
     },
-    updateInstruments(signal) {
-      active.updateScreen(signal);
+    updateInstruments(signal, tvWave) {
+      active.updateScreen(signal, tvWave);
       cone.morphTargetInfluences[excursion] = MathUtils.clamp(2.6 * signal.kick, -.40, 1);
     },
     setFloor(settings) {

@@ -1,7 +1,7 @@
 {
   "motion": {
     "playing": true,
-    "position": 271.6747583333051
+    "position": 332.53470833330806
   },
   "physics": {
     "gravity": 9.8,
@@ -31,21 +31,21 @@
     "tempo": 30,
     "voices": [
       {
-        "level": 0.28,
-        "gate": 0.78,
+        "level": 0.16,
+        "gate": 0.83,
         "attack": 0.001,
-        "decay": 0.14,
-        "sustain": 0,
-        "release": 0.04,
+        "decay": 0.45,
+        "sustain": 0.1,
+        "release": 0.64,
         "lowpass": 6200,
         "resonance": 0.7,
         "highpass": 20,
         "fm": 0,
         "harmonicity": 2,
         "drive": 0,
-        "pan": 0.5,
-        "reverb": 0,
-        "roomSize": 0.6,
+        "pan": 0.4,
+        "reverb": 0.07,
+        "roomSize": 1.2,
         "delay": 0,
         "delayTime": 0.75,
         "delayFeedback": 0.25,
@@ -53,6 +53,7 @@
         "sound": "snare",
         "note": 57,
         "rhythm": "x",
+        "beats": ".x.x",
         "modulations": {
           "lowpass": {
             "enabled": false,
@@ -228,13 +229,17 @@
       }
     ]
   },
+  "tvWave": {
+    "height": 1.55,
+    "density": 1
+  },
   "visibility": {
     "fps": false
   },
   "camera": {
-    "yaw": 4.976307334325497,
-    "elevation": 13.263242401411208,
-    "distance": 19.200000000178115,
+    "yaw": -20.831353076052096,
+    "elevation": 24.53973664620242,
+    "distance": 19.20000000024461,
     "offsetX": 0,
     "offsetY": 0,
     "offsetZ": 0

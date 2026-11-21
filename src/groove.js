@@ -27,8 +27,9 @@ export function createGroove(tempo, voices) {
     add(1, bar, .43, 1);
     // Move just the last bar's second kick to the "and" of three.
     add(1, bar + (bar === quartersPerLoop - 4 ? 2.5 : 2), .36, .82);
-    add(0, bar + 1, .30, .91);
-    add(0, bar + 3, .30, 1);
+    for (let beat = 0; beat < 4; beat++) {
+      if (voices[0].beats[beat] === 'x') add(0, bar + beat, .30, beat === 3 ? 1 : .91);
+    }
   }
   // Clicks on one or three already have a kick. Give each click on a
   // backbeat a lighter kick underneath the snare at the very same onset.

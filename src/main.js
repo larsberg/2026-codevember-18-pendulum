@@ -166,7 +166,7 @@ function change(group, key, value) {
 }
 
 function render() {
-  set.updateInstruments(audio.stageMotion(clock.position()));
+  set.updateInstruments(audio.stageMotion(clock.position()), settings.tvWave);
   followShadow(lightingTarget);
   effects.render(focus);
 }

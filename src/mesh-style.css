@@ -4,6 +4,10 @@
 .control-tabs [role="tab"] { min-width: 0; }
 .synth-range { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 10px; }
 .synth-range .audio-field { min-width: 0; }
+.snare-beats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; min-width: 0; padding: 0; margin: 12px 0; border: 0; }
+.snare-beats legend { margin-bottom: 5px; padding: 0; }
+.snare-beats button { font-variant-numeric: tabular-nums; }
+.snare-beats button[aria-pressed="true"] { font-weight: 700; color: white; background: #303030; border-color: #303030; }
 .scene-canvas { cursor: grab; }
 .mesh-stats { color: #747474; font-size: 10px; font-variant-numeric: tabular-nums; margin-top: 16px; }
 [hidden] { display: none !important; }
