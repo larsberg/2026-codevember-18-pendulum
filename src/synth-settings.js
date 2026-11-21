@@ -2,7 +2,8 @@
 export const audioFields = {
   enabled: ['Sound', false], volume: ['Volume', .3, 0, 1, .01], tempo: ['Metronome (BPM)', 30, 20, 200, 1],
 };
-export const waveforms = ['triangle', 'sine', 'sawtooth', 'square'];
+const waveforms = ['triangle', 'sine', 'sawtooth', 'square'];
+export const voiceSounds = [['snare', ...waveforms], waveforms];
 export const VOICE_NAMES = ['A', 'B'];
 export const ROOT_NOTES = [57, 31];
 export const voiceFields = {
@@ -28,11 +29,11 @@ export const modulationTargets = {
 export function defaultVoices() {
   return [0, 1].map(index => ({
     ...Object.fromEntries(Object.entries(voiceFields).map(([key, [, initial]]) => [key, initial])),
-    enabled: true, sound: 'sine', note: ROOT_NOTES[index],
+    enabled: true, sound: index ? 'sine' : 'snare', note: ROOT_NOTES[index],
     rhythm: 'x',
-    lowpass: index ? 260 : 1750, fm: 0, drive: 0, attack: index ? .014 : .004,
-    decay: index ? .17 : .105, sustain: 0, release: index ? .06 : .032,
-    reverb: 0, delay: 0, level: index ? .46 : .69, pan: .5, gate: .78,
+    lowpass: index ? 260 : 6200, fm: 0, drive: 0, attack: index ? .005 : .001,
+    decay: index ? .17 : .14, sustain: 0, release: index ? .06 : .04,
+    reverb: 0, delay: 0, level: index ? .46 : .28, pan: .5, gate: .78,
     modulations: Object.fromEntries(Object.entries(modulationTargets).map(([key, [,, min, max]], i) => [key, {
       enabled: false,
       corner: index ? 15 - i : i, heightMin: 0, heightMax: 4, min, max,
@@ -60,7 +61,7 @@ export function validateVoices(value = defaultVoices(), legacy = false) {
       result[key] = x;
     }
     result.enabled = voice.enabled ?? result.enabled; if (typeof result.enabled !== 'boolean') fail('enabled');
-    result.sound = voice.sound ?? result.sound; if (!waveforms.includes(result.sound)) fail('sound');
+    result.sound = voice.sound ?? result.sound; if (!voiceSounds[i].includes(result.sound)) fail('sound');
     result.note = voice.note ?? result.note; if (!Number.isInteger(result.note) || result.note < 24 || result.note > 96) fail('note');
     result.rhythm = voice.rhythm ?? result.rhythm;
     if (typeof result.rhythm !== 'string' || !/^[xX.\-]{1,32}$/.test(result.rhythm)) fail('rhythm');

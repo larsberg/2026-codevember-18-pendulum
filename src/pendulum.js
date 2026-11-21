@@ -60,8 +60,9 @@ function wireTelevision(channels) {
         `);
     };
   }
-  return ({ bass, cycles, phase }) => {
-    wave.set(.10 + Math.min(.29, .41 * bass), 2 * Math.PI * cycles, phase);
+  return ({ snare, position }) => {
+    const phase = -2 * Math.PI * 8 * (position % 1);
+    wave.set(Math.min(.34, 2 * snare), 2 * Math.PI * (1.25 + 4 * snare), phase);
     // Integrate the bright field over each half so its light follows the glass.
     channels.forEach(({ lamp }, side) => {
       const left = phase + side * wave.y / 2;

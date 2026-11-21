@@ -4,9 +4,6 @@ import { rhythmOnsets } from './synth.js';
 // The pendulum reaches an end stop once every three quarters.
 const quartersPerClick = 3;
 const quartersPerLoop = 12;
-const kickHits = [[.75, .78], [2, 1], [4, 1], [5.5, .67],
-  [6.5, .82], [8, 1], [10, .96], [11.5, .66]];
-const tvEndings = [0, 3, 0, -2]; // Last tap of each reply, in semitones.
 
 function envelope(age, hold, { attack, decay, sustain, release }) {
   if (age < 0 || age >= hold + release) return 0;
@@ -18,52 +15,47 @@ function envelope(age, hold, { attack, decay, sustain, release }) {
 export function createGroove(tempo, voices) {
   const seconds = 60 / (tempo * quartersPerClick);
   const notes = [];
-  function add(voice, start, span, interval, accent) {
+  function add(voice, start, span, accent) {
     const patch = voices[voice];
     if (!patch.enabled) return;
     for (const onset of rhythmOnsets(patch.rhythm)) {
-      notes.push({ voice, start: start + span * onset, duration: span * patch.gate / patch.rhythm.length, interval, accent });
+      notes.push({ voice, start: start + span * onset, duration: span * patch.gate / patch.rhythm.length, accent });
     }
   }
-  for (const [quarter, accent] of kickHits) add(1, quarter, .43, 0, accent);
-  for (const [swing, ending] of tvEndings.entries()) {
-    const click = swing * quartersPerClick;
-    // Leave the cut open, then answer with three eighth notes. The lighter
-    // middle tap sits 1/32 of a quarter behind the grid (21 ms at 90 BPM).
-    add(0, click + 1.5, .24, 0, 1);
-    add(0, click + 2 + 1/32, .12, 0, .60);
-    add(0, click + 2.5, .18, ending, .84);
+  // Count in fours while the pendulum clicks every three quarter notes.
+  for (let bar = 0; bar < quartersPerLoop; bar += 4) {
+    add(1, bar, .43, 1);
+    // Move just the last bar's second kick to the "and" of three.
+    add(1, bar + (bar === quartersPerLoop - 4 ? 2.5 : 2), .36, .82);
+    add(0, bar + 1, .30, .91);
+    add(0, bar + 3, .30, 1);
+  }
+  // Clicks on one or three already have a kick. Give each click on a
+  // backbeat a lighter kick underneath the snare at the very same onset.
+  for (let click = quartersPerClick; click < quartersPerLoop; click += quartersPerClick) {
+    if (click % 2 === 1) add(1, click, .27, .56);
   }
 
   return {
     pattern(api) {
-      const layers = notes.map(({ start, duration, voice, interval, accent }) =>
-        api.pure({ voice, interval, accent }).compress(start / quartersPerLoop, (start + duration) / quartersPerLoop));
+      const layers = notes.map(({ start, duration, voice, accent }) =>
+        api.pure({ voice, accent }).compress(start / quartersPerLoop, (start + duration) / quartersPerLoop));
       const loop = layers.length ? api.stack(...layers).slow(quartersPerLoop / quartersPerClick).late(1) : api.silence;
       return api.stack(api.pure({ click: true }), loop);
     },
-    motion(position) {
-      // The first audible metronome click is the downbeat. Read the same notes
-      // and envelopes as Strudel, including on a seek or during muted playback.
+    kickStroke(position) {
+      // The first audible metronome click is the downbeat.
       const quarter = (position - 1) * quartersPerClick;
-      let bass = 0, kick = 0, cycles = 1.25, phase = 0;
-      for (const { start, duration, voice, interval, accent } of notes) {
-        if (quarter < start) continue;
+      let kick = 0;
+      for (const { start, duration, voice, accent } of notes) {
+        if (voice !== 1 || quarter < start) continue;
         const age = ((quarter - start) % quartersPerLoop) * seconds;
         const patch = voices[voice];
         const amplitude = patch.level * accent * envelope(age, duration * seconds, patch);
-        if (voice === 0 && amplitude > bass) {
-          bass = amplitude;
-          const hz = 440 * 2 ** ((patch.note + interval - 69) / 12);
-          cycles = Math.max(.6, Math.min(3, 1.25 * hz / 220));
-          // Slow the displayed oscillator so individual crests can be seen.
-          phase = -2 * Math.PI * age * hz / 72;
-        } else if (voice === 1) {
-          const stroke = amplitude * Math.cos(2 * Math.PI * 6.4 * age - .9);
-          if (Math.abs(stroke) > Math.abs(kick)) kick = stroke;
-        }
+        const stroke = amplitude * Math.cos(2 * Math.PI * 6.4 * age - .9);
+        if (Math.abs(stroke) > Math.abs(kick)) kick = stroke;
       }
-      return { bass, kick, cycles, phase };
+      return kick;
     },
   };
 }

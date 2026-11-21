@@ -1,4 +1,4 @@
-import { defaultVoices, modulationTargets, voiceFields, waveforms, VOICE_NAMES } from './synth-settings.js';
+import { defaultVoices, modulationTargets, voiceFields, voiceSounds, VOICE_NAMES } from './synth-settings.js';
 
 export const noteName = midi => `${['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'][midi % 12]}${Math.floor(midi / 12) - 1}`;
 export function synthControlsMarkup() {
@@ -9,7 +9,7 @@ export function synthControlsMarkup() {
   return defaultVoices().map((voice, i) => `
     <details class="material-group" open><summary>Voice ${i + 1} · ${VOICE_NAMES[i]}</summary>
       <label class="lighting-toggle"><input type="checkbox" id="synth-${i}-enabled" data-synth-voice="${i}" data-synth-key="enabled">Enabled</label>
-      <label class="audio-field">Waveform<select id="synth-${i}-sound" data-synth-voice="${i}" data-synth-key="sound">${waveforms.map(s => `<option value="${s}">${s}</option>`).join('')}</select></label>
+      <label class="audio-field">Sound<select id="synth-${i}-sound" data-synth-voice="${i}" data-synth-key="sound">${voiceSounds[i].map(s => `<option value="${s}">${s}</option>`).join('')}</select></label>
       <label class="audio-field">Root note<select id="synth-${i}-note" data-synth-voice="${i}" data-synth-key="note">${Array.from({ length: 73 }, (_, n) => n + 24).map(note => `<option value="${note}">${noteName(note)}</option>`).join('')}</select></label>
       <label class="audio-field">Rhythm<input id="synth-${i}-rhythm" data-synth-voice="${i}" data-synth-key="rhythm" type="text" maxlength="32" required spellcheck="false" aria-label="Voice ${i + 1} rhythm"></label>
       ${['level', 'gate'].map(key => slider(i, key)).join('')}

@@ -14,6 +14,7 @@ export function createAudio({ clock, load = () => import('@strudel/web'), onErro
   let active = false, waitingForInteraction = false, operation = 0, eventCount = 0, failed = false;
   let recentNotes = [];
   let analysis; const silence = silentAnalysis();
+  const analysers = () => analysis ??= createAnalysis(api, context);
   const positions = new Float64Array(48), floor = 0;
   const wanted = () => !disposed && running && settings?.enabled;
   function syncModulation() {
@@ -53,6 +54,10 @@ export function createAudio({ clock, load = () => import('@strudel/web'), onErro
       context = api.getAudioContext(); repl = await api.initStrudel();
       if (disposed) { repl.stop(); if (context.state !== 'closed') await context.close(); return; }
       await api.initAudio(); if (disposed) { repl.stop(); return; }
+      const snare = new URL('./assets/tv-snare.wav', import.meta.url).href;
+      await api.samples({ snare: { a3: [snare] } });
+      await api.loadBuffer(snare, context, 'TV snare');
+      if (disposed) return;
       refresh();
     })().catch(error => { loading = undefined; patternKey = undefined; throw error; });
     return loading;
@@ -69,7 +74,6 @@ export function createAudio({ clock, load = () => import('@strudel/web'), onErro
       duration = .027;
     } else {
       value = liveSynthValue(synthValue(settings, event.voice, positions, floor), event.voice);
-      value.note += event.interval ?? 0;
       value.postgain = event.accent ?? 1;
       // A damped drumhead, falling from 87 Hz to 49 Hz on the stock patch.
       if (event.voice === 1) Object.assign(value, { penv: 10, pattack: .003, pdecay: .075, psustain: 0, panchor: 0 });
@@ -95,10 +99,11 @@ export function createAudio({ clock, load = () => import('@strudel/web'), onErro
       : context.currentTime - (context.outputLatency || context.baseLatency || 0);
     const to = clock.position(now + .12 + Math.max(0, context.currentTime - audioNow));
     if (to <= from) return;
+    const earliest = context.currentTime + .002;
     for (const hap of score.queryArc(from, to)) {
       if (!hap.hasOnset()) continue;
       const beat = Number(hap.whole.begin);
-      const when = Math.max(context.currentTime + .002, audioNow + clock.timeAt(beat) - now);
+      const when = Math.max(earliest, audioNow + clock.timeAt(beat) - now);
       playHit(hap.value, when, Number(hap.duration) * 60 / settings.tempo, beat);
     }
     nextQuery = to;
@@ -124,8 +129,12 @@ export function createAudio({ clock, load = () => import('@strudel/web'), onErro
     return starting;
   }
   return {
-    stageMotion(position) { return groove.motion(position); },
-    get analysis() { if (active) analysis ??= createAnalysis(api, context); return active ? analysis?.read() ?? silence : silence; },
+    stageMotion(position) {
+      const tv = settings.voices[0];
+      const audible = active && context.state === 'running' && settings.volume > 0 && tv.enabled && tv.level > 0;
+      return { kick: groove.kickStroke(position), snare: audible ? analysers().tvPeak() : 0, position };
+    },
+    get analysis() { return active ? analysers().read() : silence; },
     get unlocked() { return active && context?.state === 'running'; },
     get diagnostics() { return { engine: 'Strudel', enabled: !!settings?.enabled, running: active, busy, waitingForInteraction,
       events: eventCount, clicks, lastClickBeat, recentNotes, live: modulation?.diagnostics, context: context?.state ?? 'locked' }; },

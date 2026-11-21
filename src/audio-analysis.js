@@ -39,8 +39,17 @@ export function createAudioAnalysis(api, context) {
     output.connect(mono); output.connect(splitter); splitter.connect(left, 0); splitter.connect(right, 1);
     return { output, nodes, splitter, mono, left, right, frame };
   });
+  const tvSamples = new Float32Array(ANALYSIS_FFT_SIZE);
+  // About one video frame of the TV orbit, including short ghost strokes.
+  const windowStart = Math.max(0, tvSamples.length - Math.ceil(context.sampleRate / 30));
   let previous = -Infinity, disposed = false;
   return {
+    tvPeak() {
+      taps[0].mono.getFloatTimeDomainData(tvSamples);
+      let peak = 0;
+      for (let i = windowStart; i < tvSamples.length; i++) peak = Math.max(peak, Math.abs(tvSamples[i]));
+      return peak > .001 ? peak : 0;
+    },
     read() {
       if (disposed || context.state !== 'running') { result.active = false; return result; }
       result.active = true;

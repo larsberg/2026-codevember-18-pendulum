@@ -600,11 +600,8 @@ def breakfast_orrery(table, x, y):
 
 def broadcast_image(name, colors):
     w, h = 512, 288
-    y, x = np.mgrid[:h, :w]
-    u, v = (x + .5) / w, (y + .5) / h
     # Rest frame of the two-color signal animated by the Three.js player.
-    edge = .5 + .10*np.sin(2*pi*1.25*u)
-    coverage = np.clip((v-edge)*h+.5, 0, 1)[:, :, None]
+    coverage = (np.arange(h) >= h // 2)[:, None, None]
     image = bpy.data.images.new(name + ' / broadcast', width=w, height=h)
     pixels = np.ones((h, w, 4), dtype=np.float32)
     rgb = (1-coverage)*.16*np.array(linear(colors[0])) + coverage*.85*np.array(linear(colors[1]))
@@ -740,7 +737,7 @@ shot('05 Exchange', 'Above the steps', (-2.80,-2.40,8.55), (.20,2.40,3.16), 11.0
      (-3.2,-3,6.6),(1.35,'ffe1c0'),[((1.2,-2,6),(3,3),155,'d5e5ff')], horizontal_fill=.64)
 camera_angle('From the stool', (-4.16,-2.62,1.54), (-.36,3.15,2.90), 13.20)
 camera_angle('Down the counter', (6.72,-.62,2.76), (.35,3.60,2.82), 14)
-rug('Switchboard runner',(-3.78,.55),(5.25,1.85),-8,.12,'runner',('704349','cf7655','d3bf9b','422f3d'))
+rug('Switchboard runner',(-5.60,.55),(5.25,1.85),-8,.12,'runner',('704349','cf7655','d3bf9b','422f3d'))
 desk = empty('Switchboard desk',(-.90,4.65,0),role='prop')
 cube('Lacquered counter',(0,0,2.80),(6.90,1.90,.22),ivory,.105,desk)
 cube('Edge band',(0,0,2.66),(6.78,1.80,.09),orange,.038,desk)

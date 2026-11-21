@@ -90,6 +90,16 @@ test('the catalog stepladder rises from the floor toward the front of the counte
   assert.ok(climb.dot(towardTable) > .85, 'ascending the treads should lead toward the table');
 });
 
+test('every rug, including its fringe, leaves clear floor around the full speaker assembly', () => {
+  const speaker = geometry('../public/models/stage.glb', 'Floor speaker');
+  // Four Blender units per metre. Test the footprint, including the plug and cable.
+  speaker.expandByVector(new Vector3(.8, 0, .8));
+  for (const [shot, name] of [['exchange', 'Switchboard runner'], ['library', 'Reading rug'], ['daybed', 'Arcade kilim']]) {
+    const rug = geometry('../public/models/' + shot + '.glb', name);
+    assert.ok(!speaker.intersectsBox(rug), name + ' needs 20 cm of clearance');
+  }
+});
+
 test('each TV emitter sits just in front of its corresponding half of the picture', () => {
   const { shots } = JSON.parse(readFileSync(new URL('../public/models/shots.json', import.meta.url)));
   for (const shot of shots) {
