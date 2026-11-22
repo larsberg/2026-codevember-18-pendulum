@@ -1,7 +1,7 @@
 {
   "motion": {
     "playing": true,
-    "position": 0.75
+    "position": 61.902875
   },
   "physics": {
     "gravity": 9.8,
@@ -130,8 +130,8 @@
         }
       },
       {
-        "level": 0.65,
-        "gate": 0.78,
+        "level": 1,
+        "gate": 0.89,
         "attack": 0.005,
         "decay": 0.23,
         "sustain": 0.06,
@@ -149,7 +149,7 @@
         "delayTime": 0.75,
         "delayFeedback": 0.25,
         "enabled": true,
-        "sound": "sine",
+        "sound": "square",
         "note": 31,
         "rhythm": "x",
         "modulations": {
